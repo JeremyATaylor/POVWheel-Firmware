@@ -312,179 +312,6 @@ int main(void) {
 		
 	return 0;
 }
-
-
-
-#include <stdint.h>
-#include <avr/io.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#define GSCLK_DDR DDRB
-#define GSCLK_PORT PORTB
-#define GSCLK_PIN PB0
-
-#define SIN_DDR DDRB
-#define SIN_PORT PORTB
-#define SIN_PIN PB3
-
-#define SCLK_DDR DDRB
-#define SCLK_PORT PORTB
-#define SCLK_PIN PB5
-
-#define BLANK_DDR DDRB
-#define BLANK_PORT PORTB
-#define BLANK_PIN PB2
-
-#define DCPRG_DDR DDRD
-#define DCPRG_PORT PORTD
-#define DCPRG_PIN PD4
-
-#define VPRG_DDR DDRD
-#define VPRG_PORT PORTD
-#define VPRG_PIN PD7
-
-#define XLAT_DDR DDRB
-#define XLAT_PORT PORTB
-#define XLAT_PIN PB1
-
-#define TLC5940_N 1
-
-#define setOutput(ddr, pin) ((ddr) |= (1 << (pin)))
-#define setLow(port, pin) ((port) &= ~(1 << (pin)))
-#define setHigh(port, pin) ((port) |= (1 << (pin)))
-#define pulse(port, pin) do { \
-	setHigh((port), (pin)); \
-	setLow((port), (pin)); \
-} while (0)
-#define outputState(port, pin) ((port) & (1 << (pin)))
-
-uint8_t dcData[96 * TLC5940_N] = {
-	// MSB            LSB
-	1, 1, 1, 1, 1, 1,			// Channel 15
-	1, 1, 1, 1, 1, 1,			// Channel 14
-	1, 1, 1, 1, 1, 1,			// Channel 13
-	1, 1, 1, 1, 1, 1, 			// Channel 12
-	1, 1, 1, 1, 1, 1,			// Channel 11
-	1, 1, 1, 1, 1, 1,			// Channel 10
-	1, 1, 1, 1, 1, 1,			// Channel 9
-	1, 1, 1, 1, 1, 1, 			// Channel 8
-	1, 1, 1, 1, 1, 1, 			// Channel 7
-	1, 1, 1, 1, 1, 1,			// Channel 6
-	1, 1, 1, 1, 1, 1,			// Channel 5
-	1, 1, 1, 1, 1, 1, 			// Channel 4
-	1, 1, 1, 1, 1, 1, 			// Channel 3
-	1, 1, 1, 1, 1, 1, 			// Channel 2
-	1, 1, 1, 1, 1, 1, 			// Channel 1
-	1, 1, 1, 1, 1, 1, 			// Channel 0
-};
-
-uint8_t gsData[192 * TLC5940_N] = {
-	// MSB                              LSB
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 		// Channel 15
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 14
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 13
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,			// Channel 12
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,			// Channel 11
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,			// Channel 10
-	0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,			// Channel 9
-	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,			// Channel 8
-	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,			// Channel 7
-	0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,			// Channel 6
-	0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,			// Channel 5
-	0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 4
-	0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 3
-	0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 2
-	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 1
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			// Channel 0
-};
-
-void TLC5940_Init(void) {
-	setOutput(GSCLK_DDR, GSCLK_PIN);
-	setOutput(SCLK_DDR, SCLK_PIN);
-	setOutput(DCPRG_DDR, DCPRG_PIN);
-	setOutput(VPRG_DDR, VPRG_PIN);
-	setOutput(XLAT_DDR, XLAT_PIN);
-	setOutput(BLANK_DDR, BLANK_PIN);
-	setOutput(SIN_DDR, SIN_PIN);
-	
-	setLow(GSCLK_PORT, GSCLK_PIN);
-	setLow(SCLK_PORT, SCLK_PIN);
-	setLow(DCPRG_PORT, DCPRG_PIN);
-	setHigh(VPRG_PORT, VPRG_PIN);
-	setLow(XLAT_PORT, XLAT_PIN);
-	setHigh(BLANK_PORT, BLANK_PIN);
-}
-
-void TLC5940_ClockInDC(void) {
-	setHigh(DCPRG_PORT, DCPRG_PIN);
-	setHigh(VPRG_PORT, VPRG_PIN);
-
-	uint8_t Counter = 0;
-	
-	for (;;) {
-		if (Counter > TLC5940_N * 96 - 1) {
-			pulse(XLAT_PORT, XLAT_PIN);
-			break;
-			} else {
-			if (dcData[Counter])
-			setHigh(SIN_PORT, SIN_PIN);
-			else
-			setLow(SIN_PORT, SIN_PIN);
-			pulse(SCLK_PORT, SCLK_PIN);
-			Counter++;
-		}
-	}
-}
-
-void TLC5940_SetGS_And_GS_PWM(void) {
-	uint8_t firstCycleFlag = 0;
-	
-	if (outputState(VPRG_PORT, VPRG_PIN)) {
-		setLow(VPRG_PORT, VPRG_PIN);
-		firstCycleFlag = 1;
-	}
-	
-	uint16_t GSCLK_Counter = 0;
-	uint8_t Data_Counter = 0;
-	
-	setLow(BLANK_PORT, BLANK_PIN);
-	for (;;) {
-		if (GSCLK_Counter > 4095) {
-			setHigh(BLANK_PORT, BLANK_PIN);
-			pulse(XLAT_PORT, XLAT_PIN);
-			if (firstCycleFlag) {
-				pulse(SCLK_PORT, SCLK_PIN);
-				firstCycleFlag = 0;
-			}
-			break;
-			} else {
-			if (!(Data_Counter > TLC5940_N * 192 - 1)) {
-				if (gsData[Data_Counter])
-				setHigh(SIN_PORT, SIN_PIN);
-				else
-				setLow(SIN_PORT, SIN_PIN);
-				pulse(SCLK_PORT, SCLK_PIN);
-				Data_Counter++;
-			}
-		}
-		pulse(GSCLK_PORT, GSCLK_PIN);
-		GSCLK_Counter++;
-	}
-}
-
-int main(void) {
-	TLC5940_Init();
-	TLC5940_ClockInDC();	// try it both with and without this line
-
-	while (1) {
-		TLC5940_SetGS_And_GS_PWM();
-	}
-
-	return 0;
-} 
-
-
 */
 
 #include <stdint.h>
@@ -521,11 +348,11 @@ int main(void) {
 #define XLAT_PORT PORTB
 #define XLAT_PIN PB1
 
-#define TLC5940_N 1
+#define TLC5940_N 2
 
-#define setOutput(ddr, pin) ((ddr) |= (1 << (pin)))
+/*#define setOutput(ddr, pin) ((ddr) |= (1 << (pin)))
 #define setLow(port, pin) ((port) &= ~(1 << (pin)))
-#define setHigh(port, pin) ((port) |= (1 << (pin)))
+#define setHigh(port, pin) ((port) |= (1 << (pin)))*/
 
 
 #if (12 * TLC5940_N > 255)
@@ -544,6 +371,18 @@ int main(void) {
 #define gsDataSize ((gsData_t)24 * TLC5940_N)
 
 uint8_t dcData[12 * TLC5940_N] = {
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
 	0b11111111,
 	0b11111111,
 	0b11111111,
@@ -583,10 +422,35 @@ uint8_t gsData[24 * TLC5940_N] = {
 	0b10000000,
 	0b00001111,
 	0b11111111,
+	
+	0b11111111, 
+	0b11111000,
+	0b00000000,
+	0b01000000,
+	0b00000010,
+	0b00000000,
+	0b00010000,
+	0b00000000,
+	0b10000000,
+	0b00000100,
+	0b00000000,
+	0b00100000,
+	0b00000001,
+	0b00000000,
+	0b00001000,
+	0b00000000,
+	0b01000000,
+	0b00000010,
+	0b00000000,
+	0b00010000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
 };
 
 void setup(void) {
-	
+	/* Declare pins as outputs */
 	GSCLK_DDR |= (1 << GSCLK_PIN);		// Grayscale PWM reference clock
 	SCLK_DDR |= (1 << SCLK_PIN);		// Serial data shift clock
 	DCPRG_DDR |= (1 << DCPRG_PIN);		// Dot correction programming
@@ -595,6 +459,7 @@ void setup(void) {
 	BLANK_DDR |= (1 << BLANK_PIN);		// Blank all outputs 
 	SIN_DDR |= (1 << SIN_PIN);			// Serial data output > input
 	
+	/* TLC5940 initialization routine */
 	GSCLK_PORT &= ~(1 << GSCLK_PIN);	// Set grayscale clock pin low
 	SCLK_PORT &= ~(1 << SCLK_PIN);		// Set serial data shift clock pin low
 	DCPRG_PORT &= ~(1 << DCPRG_PIN);	// Set dot correction programming pin low
@@ -602,6 +467,7 @@ void setup(void) {
 	XLAT_PORT &= ~(1 << XLAT_PIN);		// Set latch signal pin low
 	BLANK_PORT |= (1 << BLANK_PIN);		// Set blank output pin high
 
+	/* Initialize timer */
 	SPCR = (1 << SPE)|(1 << MSTR);		// Enable SPI and Master
 	SPSR = (1 << SPI2X);				// Set clock rate fck/2
 	TCCR0A = (1 << WGM01);				// Set timer mode to CTC
@@ -610,9 +476,12 @@ void setup(void) {
 	// OCRn = [ (Clock speed / Prescale value) * (Desired time in seconds) ] - 1
 	OCR0A = 3;							// Interrupt every 4096 clock cycles
 	TIMSK0 |= (1 << OCIE0A);			// Enable Timer0 Match A interrupt
+	
+	DDRC |= (1 << PINC4);				// Declare test LED as output
 }
 
-void TLC5940_ClockInDC(void) {
+/* Get dot correction values */
+void getDC(void) {
 	DCPRG_PORT |= (1 << DCPRG_PIN);		// Set dot correction pin high
 	VPRG_PORT |= (1 << VPRG_PIN);		// Set mode selection pin high
 	
@@ -658,12 +527,12 @@ ISR(TIMER0_COMPA_vect) {
 }
 
 int main(void) {
-	setup();
-	TLC5940_ClockInDC();
+	setup();	// Initialize hardware
+	getDC();	// Clock in dot correction data
 	
 	sei();		// Enable interrupts
 
-	while (1);
+	while(1);	// Infinite loop, waiting for interrupts
 	
 	return 0;
 }
