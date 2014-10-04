@@ -1,3 +1,4 @@
+/*
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -312,7 +313,7 @@ int main(void) {
 	return 0;
 }
 
-/*
+
 
 #include <stdint.h>
 #include <avr/io.h>
@@ -484,6 +485,7 @@ int main(void) {
 } 
 
 
+*/
 
 #include <stdint.h>
 #include <avr/io.h>
@@ -531,7 +533,7 @@ int main(void) {
 #define outputState(port, pin) ((port) & (1 << (pin)))
 
 uint8_t dcData[96 * TLC5940_N] = {
-	// MSB            LSB
+// MSB            LSB
 	1, 1, 1, 1, 1, 1,			// Channel 15
 	1, 1, 1, 1, 1, 1,			// Channel 14
 	1, 1, 1, 1, 1, 1,			// Channel 13
@@ -551,7 +553,7 @@ uint8_t dcData[96 * TLC5940_N] = {
 };
 
 uint8_t gsData[192 * TLC5940_N] = {
-	// MSB                              LSB
+// MSB                              LSB
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 		// Channel 15
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 14
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 13
@@ -585,9 +587,6 @@ void TLC5940_Init(void) {
 	setHigh(VPRG_PORT, VPRG_PIN);
 	setLow(XLAT_PORT, XLAT_PIN);
 	setHigh(BLANK_PORT, BLANK_PIN);
-	
-	DDRC |= (1 << PORTC4);
-
 
 	// CTC with OCR0A as TOP
 	TCCR0A = (1 << WGM01);
@@ -597,22 +596,6 @@ void TLC5940_Init(void) {
 	OCR0A = 3;
 	// Enable Timer/Counter0 Compare Match A interrupt
 	TIMSK0 |= (1 << OCIE0A);
-
-	// Set the Timer Mode to CTC
-	TCCR0A |= (1 << WGM01);
-
-	// Set the value that you want to count to
-	// OCRn =  [ (clock_speed / Prescaler_value) * Desired_time_in_Seconds ] - 1
-	OCR0A = 3;
-
-	TIMSK0 |= (1 << OCIE0A);    // Set the ISR COMPA_vect
-
-	sei();	// Enable interrupts
-
-	// Set prescaler to 256 and start the timer
-	TCCR0B |= (1 << CS00);
-	TCCR0B |= (1 << CS02);	
-	
 }
 
 void TLC5940_ClockInDC(void) {
@@ -625,23 +608,18 @@ void TLC5940_ClockInDC(void) {
 		if (Counter > TLC5940_N * 96 - 1) {
 			pulse(XLAT_PORT, XLAT_PIN);
 			break;
-		} else {
-			if (dcData[Counter]) {
-				setHigh(SIN_PORT, SIN_PIN);
 			} else {
-				setLow(SIN_PORT, SIN_PIN);
-				pulse(SCLK_PORT, SCLK_PIN);
-				Counter++;
-			}
+			if (dcData[Counter])
+			setHigh(SIN_PORT, SIN_PIN);
+			else
+			setLow(SIN_PORT, SIN_PIN);
+			pulse(SCLK_PORT, SCLK_PIN);
+			Counter++;
 		}
 	}
 }
 
 ISR(TIMER0_COMPA_vect) {
-	
-	PORTC ^= (1<<PORTC4);
-	
-	
 	uint8_t firstCycleFlag = 0;
 	static uint8_t xlatNeedsPulse = 0;
 
@@ -651,32 +629,32 @@ ISR(TIMER0_COMPA_vect) {
 		setLow(VPRG_PORT, VPRG_PIN);
 		firstCycleFlag = 1;
 	}
+
 	if (xlatNeedsPulse) {
 		pulse(XLAT_PORT, XLAT_PIN);
 		xlatNeedsPulse = 0;
 	}
-	if (firstCycleFlag) {
+	
+	if (firstCycleFlag)
 	pulse(SCLK_PORT, SCLK_PIN);
-	}
 	
 	setLow(BLANK_PORT, BLANK_PIN);
 	
 	// Below this we have 4096 cycles to shift in the data for the next cycle
 	uint8_t Data_Counter = 0;
-	while (1) {
+	for (;;) {
 		if (!(Data_Counter > TLC5940_N * 192 - 1)) {
-			if (gsData[Data_Counter]) {
-				setHigh(SIN_PORT, SIN_PIN);
+			if (gsData[Data_Counter])
+			setHigh(SIN_PORT, SIN_PIN);
+			else
+			setLow(SIN_PORT, SIN_PIN);
+			pulse(SCLK_PORT, SCLK_PIN);
+			Data_Counter++;
 			} else {
-				setLow(SIN_PORT, SIN_PIN);
-				pulse(SCLK_PORT, SCLK_PIN);
-				Data_Counter++;
-			}
-		} else {
 			xlatNeedsPulse = 1;
 			break;
 		}
-	} 
+	}
 }
 
 int main(void) {
@@ -686,12 +664,8 @@ int main(void) {
 	// Enable Global Interrupts
 	sei();
 
-	while (1) {
+	for (;;) {
 	}
 	
 	return 0;
 }
-
-
-*/
-
