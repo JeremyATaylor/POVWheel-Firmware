@@ -532,44 +532,61 @@ int main(void) {
 } while (0)
 #define outputState(port, pin) ((port) & (1 << (pin)))
 
-uint8_t dcData[96 * TLC5940_N] = {
-// MSB            LSB
-	1, 1, 1, 1, 1, 1,			// Channel 15
-	1, 1, 1, 1, 1, 1,			// Channel 14
-	1, 1, 1, 1, 1, 1,			// Channel 13
-	1, 1, 1, 1, 1, 1, 			// Channel 12
-	1, 1, 1, 1, 1, 1,			// Channel 11
-	1, 1, 1, 1, 1, 1,			// Channel 10
-	1, 1, 1, 1, 1, 1,			// Channel 9
-	1, 1, 1, 1, 1, 1, 			// Channel 8
-	1, 1, 1, 1, 1, 1, 			// Channel 7
-	1, 1, 1, 1, 1, 1,			// Channel 6
-	1, 1, 1, 1, 1, 1,			// Channel 5
-	1, 1, 1, 1, 1, 1, 			// Channel 4
-	1, 1, 1, 1, 1, 1, 			// Channel 3
-	1, 1, 1, 1, 1, 1, 			// Channel 2
-	1, 1, 1, 1, 1, 1, 			// Channel 1
-	1, 1, 1, 1, 1, 1, 			// Channel 0
+#if (12 * TLC5940_N > 255)
+#define dcData_t uint16_t
+#else
+#define dcData_t uint8_t
+#endif
+
+#if (24 * TLC5940_N > 255)
+#define gsData_t uint16_t
+#else
+#define gsData_t uint8_t
+#endif
+
+#define dcDataSize ((dcData_t)12 * TLC5940_N)
+#define gsDataSize ((gsData_t)24 * TLC5940_N)
+
+uint8_t dcData[12 * TLC5940_N] = {
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
+	0b11111111,
 };
 
-uint8_t gsData[192 * TLC5940_N] = {
-// MSB                              LSB
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 		// Channel 15
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 14
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 13
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,			// Channel 12
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,			// Channel 11
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,			// Channel 10
-	0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,			// Channel 9
-	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,			// Channel 8
-	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,			// Channel 7
-	0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,			// Channel 6
-	0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,			// Channel 5
-	0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 4
-	0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 3
-	0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 2
-	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Channel 1
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			// Channel 0
+uint8_t gsData[24 * TLC5940_N] = {
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000001,
+	0b00000000,
+	0b00100000,
+	0b00000100,
+	0b00000000,
+	0b10000000,
+	0b00010000,
+	0b00000010,
+	0b00000000,
+	0b01000000,
+	0b00001000,
+	0b00000001,
+	0b00000000,
+	0b00100000,
+	0b00000100,
+	0b00000000,
+	0b10000000,
+	0b00001111,
+	0b11111111,
 };
 
 void TLC5940_Init(void) {
@@ -588,6 +605,10 @@ void TLC5940_Init(void) {
 	setLow(XLAT_PORT, XLAT_PIN);
 	setHigh(BLANK_PORT, BLANK_PIN);
 
+	// Enable SPI, Master, set clock rate fck/2
+	SPCR = (1 << SPE) | (1 << MSTR);
+	SPSR = (1 << SPI2X);
+
 	// CTC with OCR0A as TOP
 	TCCR0A = (1 << WGM01);
 	// clk_io/1024 (From prescaler)
@@ -601,60 +622,41 @@ void TLC5940_Init(void) {
 void TLC5940_ClockInDC(void) {
 	setHigh(DCPRG_PORT, DCPRG_PIN);
 	setHigh(VPRG_PORT, VPRG_PIN);
-
-	uint8_t Counter = 0;
 	
-	for (;;) {
-		if (Counter > TLC5940_N * 96 - 1) {
-			pulse(XLAT_PORT, XLAT_PIN);
-			break;
-			} else {
-			if (dcData[Counter])
-			setHigh(SIN_PORT, SIN_PIN);
-			else
-			setLow(SIN_PORT, SIN_PIN);
-			pulse(SCLK_PORT, SCLK_PIN);
-			Counter++;
-		}
+	for (dcData_t i = 0; i < dcDataSize; i++) {
+		// Start transmission
+		SPDR = dcData[i];
+		// Wait for transmission complete
+		while (!(SPSR & (1 << SPIF)));
 	}
+	pulse(XLAT_PORT, XLAT_PIN);
 }
 
 ISR(TIMER0_COMPA_vect) {
-	uint8_t firstCycleFlag = 0;
 	static uint8_t xlatNeedsPulse = 0;
-
+	
 	setHigh(BLANK_PORT, BLANK_PIN);
-
+	
 	if (outputState(VPRG_PORT, VPRG_PIN)) {
 		setLow(VPRG_PORT, VPRG_PIN);
-		firstCycleFlag = 1;
-	}
-
-	if (xlatNeedsPulse) {
+		if (xlatNeedsPulse) {
+			pulse(XLAT_PORT, XLAT_PIN);
+			xlatNeedsPulse = 0;
+		}
+		pulse(SCLK_PORT, SCLK_PIN);
+		} else if (xlatNeedsPulse) {
 		pulse(XLAT_PORT, XLAT_PIN);
 		xlatNeedsPulse = 0;
 	}
 	
-	if (firstCycleFlag)
-	pulse(SCLK_PORT, SCLK_PIN);
-	
 	setLow(BLANK_PORT, BLANK_PIN);
 	
 	// Below this we have 4096 cycles to shift in the data for the next cycle
-	uint8_t Data_Counter = 0;
-	for (;;) {
-		if (!(Data_Counter > TLC5940_N * 192 - 1)) {
-			if (gsData[Data_Counter])
-			setHigh(SIN_PORT, SIN_PIN);
-			else
-			setLow(SIN_PORT, SIN_PIN);
-			pulse(SCLK_PORT, SCLK_PIN);
-			Data_Counter++;
-			} else {
-			xlatNeedsPulse = 1;
-			break;
-		}
+	for (gsData_t i = 0; i < gsDataSize; i++) {
+		SPDR = gsData[i];
+		while (!(SPSR & (1 << SPIF)));
 	}
+	xlatNeedsPulse = 1;
 }
 
 int main(void) {
