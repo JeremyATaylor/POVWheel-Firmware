@@ -3,29 +3,29 @@ ENGG2800.elf:     file format elf32-avr
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
-  0 .data         000002a0  00800100  00000234  000002c8  2**0
+  0 .data         00000024  00800100  00000188  0000021c  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  1 .text         00000234  00000000  00000000  00000094  2**1
+  1 .text         00000188  00000000  00000000  00000094  2**1
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  2 .bss          000000c2  008003a0  008003a0  00000568  2**0
+  2 .bss          00000001  00800124  00800124  00000240  2**0
                   ALLOC
-  3 .comment      00000030  00000000  00000000  00000568  2**0
+  3 .comment      00000030  00000000  00000000  00000240  2**0
                   CONTENTS, READONLY
-  4 .debug_aranges 00000048  00000000  00000000  00000598  2**0
+  4 .debug_aranges 00000038  00000000  00000000  00000270  2**0
                   CONTENTS, READONLY, DEBUGGING
-  5 .debug_info   00000259  00000000  00000000  000005e0  2**0
+  5 .debug_info   00000184  00000000  00000000  000002a8  2**0
                   CONTENTS, READONLY, DEBUGGING
-  6 .debug_abbrev 00000108  00000000  00000000  00000839  2**0
+  6 .debug_abbrev 000000f6  00000000  00000000  0000042c  2**0
                   CONTENTS, READONLY, DEBUGGING
-  7 .debug_line   0000015d  00000000  00000000  00000941  2**0
+  7 .debug_line   00000116  00000000  00000000  00000522  2**0
                   CONTENTS, READONLY, DEBUGGING
-  8 .debug_frame  000000a4  00000000  00000000  00000aa0  2**2
+  8 .debug_frame  00000078  00000000  00000000  00000638  2**2
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_str    000001e8  00000000  00000000  00000b44  2**0
+  9 .debug_str    00000176  00000000  00000000  000006b0  2**0
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_loc    00000252  00000000  00000000  00000d2c  2**0
+ 10 .debug_loc    0000010c  00000000  00000000  00000826  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_ranges 00000038  00000000  00000000  00000f7e  2**0
+ 11 .debug_ranges 00000028  00000000  00000000  00000932  2**0
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -45,7 +45,7 @@ Disassembly of section .text:
   2c:	0c 94 51 00 	jmp	0xa2	; 0xa2 <__bad_interrupt>
   30:	0c 94 51 00 	jmp	0xa2	; 0xa2 <__bad_interrupt>
   34:	0c 94 51 00 	jmp	0xa2	; 0xa2 <__bad_interrupt>
-  38:	0c 94 b2 00 	jmp	0x164	; 0x164 <__vector_14>
+  38:	0c 94 81 00 	jmp	0x102	; 0x102 <__vector_14>
   3c:	0c 94 51 00 	jmp	0xa2	; 0xa2 <__bad_interrupt>
   40:	0c 94 51 00 	jmp	0xa2	; 0xa2 <__bad_interrupt>
   44:	0c 94 51 00 	jmp	0xa2	; 0xa2 <__bad_interrupt>
@@ -67,398 +67,247 @@ Disassembly of section .text:
   72:	cd bf       	out	0x3d, r28	; 61
 
 00000074 <__do_copy_data>:
-  74:	13 e0       	ldi	r17, 0x03	; 3
+  74:	11 e0       	ldi	r17, 0x01	; 1
   76:	a0 e0       	ldi	r26, 0x00	; 0
   78:	b1 e0       	ldi	r27, 0x01	; 1
-  7a:	e4 e3       	ldi	r30, 0x34	; 52
-  7c:	f2 e0       	ldi	r31, 0x02	; 2
+  7a:	e8 e8       	ldi	r30, 0x88	; 136
+  7c:	f1 e0       	ldi	r31, 0x01	; 1
   7e:	02 c0       	rjmp	.+4      	; 0x84 <__do_copy_data+0x10>
   80:	05 90       	lpm	r0, Z+
   82:	0d 92       	st	X+, r0
-  84:	a0 3a       	cpi	r26, 0xA0	; 160
+  84:	a4 32       	cpi	r26, 0x24	; 36
   86:	b1 07       	cpc	r27, r17
   88:	d9 f7       	brne	.-10     	; 0x80 <__do_copy_data+0xc>
 
 0000008a <__do_clear_bss>:
-  8a:	24 e0       	ldi	r18, 0x04	; 4
-  8c:	a0 ea       	ldi	r26, 0xA0	; 160
-  8e:	b3 e0       	ldi	r27, 0x03	; 3
+  8a:	21 e0       	ldi	r18, 0x01	; 1
+  8c:	a4 e2       	ldi	r26, 0x24	; 36
+  8e:	b1 e0       	ldi	r27, 0x01	; 1
   90:	01 c0       	rjmp	.+2      	; 0x94 <.do_clear_bss_start>
 
 00000092 <.do_clear_bss_loop>:
   92:	1d 92       	st	X+, r1
 
 00000094 <.do_clear_bss_start>:
-  94:	a2 36       	cpi	r26, 0x62	; 98
+  94:	a5 32       	cpi	r26, 0x25	; 37
   96:	b2 07       	cpc	r27, r18
   98:	e1 f7       	brne	.-8      	; 0x92 <.do_clear_bss_loop>
-  9a:	0e 94 0f 01 	call	0x21e	; 0x21e <main>
-  9e:	0c 94 18 01 	jmp	0x230	; 0x230 <_exit>
+  9a:	0e 94 bc 00 	call	0x178	; 0x178 <main>
+  9e:	0c 94 c2 00 	jmp	0x184	; 0x184 <_exit>
 
 000000a2 <__bad_interrupt>:
   a2:	0c 94 00 00 	jmp	0	; 0x0 <__vectors>
 
-000000a6 <TLC5940_Init>:
+000000a6 <setup>:
+	0b11111111,
 };
 
-uint8_t gsData[192 * TLC5940_N] = {};
-
-void TLC5940_Init(void) {
-	setOutput(GSCLK_DDR, GSCLK_PIN);
+void setup(void) {
+	
+	GSCLK_DDR |= (1 << GSCLK_PIN);		// Grayscale PWM reference clock
   a6:	20 9a       	sbi	0x04, 0	; 4
-	setOutput(SCLK_DDR, SCLK_PIN);
+	SCLK_DDR |= (1 << SCLK_PIN);		// Serial data shift clock
   a8:	25 9a       	sbi	0x04, 5	; 4
-	setOutput(DCPRG_DDR, DCPRG_PIN);
+	DCPRG_DDR |= (1 << DCPRG_PIN);		// Dot correction programming
   aa:	54 9a       	sbi	0x0a, 4	; 10
-	setOutput(VPRG_DDR, VPRG_PIN);
+	VPRG_DDR |= (1 << VPRG_PIN);		// Mode selection
   ac:	57 9a       	sbi	0x0a, 7	; 10
-	setOutput(XLAT_DDR, XLAT_PIN);
+	XLAT_DDR |= (1 << XLAT_PIN);		// Latch signal
   ae:	21 9a       	sbi	0x04, 1	; 4
-	setOutput(BLANK_DDR, BLANK_PIN);
+	BLANK_DDR |= (1 << BLANK_PIN);		// Blank all outputs 
   b0:	22 9a       	sbi	0x04, 2	; 4
-	setOutput(SIN_DDR, SIN_PIN);
+	SIN_DDR |= (1 << SIN_PIN);			// Serial data output > input
   b2:	23 9a       	sbi	0x04, 3	; 4
 	
-	setLow(GSCLK_PORT, GSCLK_PIN);
+	GSCLK_PORT &= ~(1 << GSCLK_PIN);	// Set grayscale clock pin low
   b4:	28 98       	cbi	0x05, 0	; 5
-	setLow(SCLK_PORT, SCLK_PIN);
+	SCLK_PORT &= ~(1 << SCLK_PIN);		// Set serial data shift clock pin low
   b6:	2d 98       	cbi	0x05, 5	; 5
-	setLow(DCPRG_PORT, DCPRG_PIN);
+	DCPRG_PORT &= ~(1 << DCPRG_PIN);	// Set dot correction programming pin low
   b8:	5c 98       	cbi	0x0b, 4	; 11
-	setHigh(VPRG_PORT, VPRG_PIN);
+	VPRG_PORT |= (1 << VPRG_PIN);		// Set mode selection pin high
   ba:	5f 9a       	sbi	0x0b, 7	; 11
-	setLow(XLAT_PORT, XLAT_PIN);
+	XLAT_PORT &= ~(1 << XLAT_PIN);		// Set latch signal pin low
   bc:	29 98       	cbi	0x05, 1	; 5
-	setHigh(BLANK_PORT, BLANK_PIN);
+	BLANK_PORT |= (1 << BLANK_PIN);		// Set blank output pin high
   be:	2a 9a       	sbi	0x05, 2	; 5
-  c0:	08 95       	ret
 
-000000c2 <TLC5940_ClockInDC>:
+	SPCR = (1 << SPE)|(1 << MSTR);		// Enable SPI and Master
+  c0:	80 e5       	ldi	r24, 0x50	; 80
+  c2:	8c bd       	out	0x2c, r24	; 44
+	SPSR = (1 << SPI2X);				// Set clock rate fck/2
+  c4:	81 e0       	ldi	r24, 0x01	; 1
+  c6:	8d bd       	out	0x2d, r24	; 45
+	TCCR0A = (1 << WGM01);				// Set timer mode to CTC
+  c8:	82 e0       	ldi	r24, 0x02	; 2
+  ca:	84 bd       	out	0x24, r24	; 36
+	TCCR0B = (1 << CS02)|(1 << CS00);	// Set prescaler to 1024 and start timer
+  cc:	85 e0       	ldi	r24, 0x05	; 5
+  ce:	85 bd       	out	0x25, r24	; 37
+
+	// OCRn = [ (Clock speed / Prescale value) * (Desired time in seconds) ] - 1
+	OCR0A = 3;							// Interrupt every 4096 clock cycles
+  d0:	83 e0       	ldi	r24, 0x03	; 3
+  d2:	87 bd       	out	0x27, r24	; 39
+	TIMSK0 |= (1 << OCIE0A);			// Enable Timer0 Match A interrupt
+  d4:	ee e6       	ldi	r30, 0x6E	; 110
+  d6:	f0 e0       	ldi	r31, 0x00	; 0
+  d8:	80 81       	ld	r24, Z
+  da:	82 60       	ori	r24, 0x02	; 2
+  dc:	80 83       	st	Z, r24
+  de:	08 95       	ret
+
+000000e0 <TLC5940_ClockInDC>:
 }
 
 void TLC5940_ClockInDC(void) {
-	setHigh(DCPRG_PORT, DCPRG_PIN);
-  c2:	5c 9a       	sbi	0x0b, 4	; 11
-	setHigh(VPRG_PORT, VPRG_PIN);
-  c4:	5f 9a       	sbi	0x0b, 7	; 11
-  c6:	e0 e4       	ldi	r30, 0x40	; 64
-  c8:	f3 e0       	ldi	r31, 0x03	; 3
-  ca:	80 ea       	ldi	r24, 0xA0	; 160
-  cc:	93 e0       	ldi	r25, 0x03	; 3
-  ce:	03 c0       	rjmp	.+6      	; 0xd6 <TLC5940_ClockInDC+0x14>
-
-	uint8_t Counter = 0;
+	DCPRG_PORT |= (1 << DCPRG_PIN);		// Set dot correction pin high
+  e0:	5c 9a       	sbi	0x0b, 4	; 11
+	VPRG_PORT |= (1 << VPRG_PIN);		// Set mode selection pin high
+  e2:	5f 9a       	sbi	0x0b, 7	; 11
+  e4:	e8 e1       	ldi	r30, 0x18	; 24
+  e6:	f1 e0       	ldi	r31, 0x01	; 1
+  e8:	84 e2       	ldi	r24, 0x24	; 36
+  ea:	91 e0       	ldi	r25, 0x01	; 1
 	
-	while (1) {
-		if (Counter > TLC5940_N * 96 - 1) {
-			pulse(XLAT_PORT, XLAT_PIN);
-  d0:	29 9a       	sbi	0x05, 1	; 5
-  d2:	29 98       	cbi	0x05, 1	; 5
-  d4:	08 95       	ret
-			break;
-			} else {
-			if (dcData[Counter])
-  d6:	21 91       	ld	r18, Z+
-  d8:	22 23       	and	r18, r18
-  da:	11 f0       	breq	.+4      	; 0xe0 <TLC5940_ClockInDC+0x1e>
-			setHigh(SIN_PORT, SIN_PIN);
-  dc:	2b 9a       	sbi	0x05, 3	; 5
-  de:	01 c0       	rjmp	.+2      	; 0xe2 <TLC5940_ClockInDC+0x20>
-			else
-			setLow(SIN_PORT, SIN_PIN);
-  e0:	2b 98       	cbi	0x05, 3	; 5
-			pulse(SCLK_PORT, SCLK_PIN);
-  e2:	2d 9a       	sbi	0x05, 5	; 5
-  e4:	2d 98       	cbi	0x05, 5	; 5
-	setHigh(VPRG_PORT, VPRG_PIN);
+	for (dcData_t i = 0; i < dcDataSize; i++) {
+		SPDR = dcData[i];				// Start transmission
+  ec:	21 91       	ld	r18, Z+
+  ee:	2e bd       	out	0x2e, r18	; 46
+		while (!(SPSR & (1 << SPIF)));	// Wait for transmission complete
+  f0:	0d b4       	in	r0, 0x2d	; 45
+  f2:	07 fe       	sbrs	r0, 7
+  f4:	fd cf       	rjmp	.-6      	; 0xf0 <TLC5940_ClockInDC+0x10>
 
-	uint8_t Counter = 0;
+void TLC5940_ClockInDC(void) {
+	DCPRG_PORT |= (1 << DCPRG_PIN);		// Set dot correction pin high
+	VPRG_PORT |= (1 << VPRG_PIN);		// Set mode selection pin high
 	
-	while (1) {
-		if (Counter > TLC5940_N * 96 - 1) {
-  e6:	e8 17       	cp	r30, r24
-  e8:	f9 07       	cpc	r31, r25
-  ea:	a9 f7       	brne	.-22     	; 0xd6 <TLC5940_ClockInDC+0x14>
-  ec:	f1 cf       	rjmp	.-30     	; 0xd0 <TLC5940_ClockInDC+0xe>
+	for (dcData_t i = 0; i < dcDataSize; i++) {
+  f6:	e8 17       	cp	r30, r24
+  f8:	f9 07       	cpc	r31, r25
+  fa:	c1 f7       	brne	.-16     	; 0xec <TLC5940_ClockInDC+0xc>
+		SPDR = dcData[i];				// Start transmission
+		while (!(SPSR & (1 << SPIF)));	// Wait for transmission complete
+	}
+	XLAT_PORT |= (1 << XLAT_PIN);
+  fc:	29 9a       	sbi	0x05, 1	; 5
+	XLAT_PORT &= ~(1 << XLAT_PIN);
+  fe:	29 98       	cbi	0x05, 1	; 5
+ 100:	08 95       	ret
 
-000000ee <TLC5940_SetGS_And_GS_PWM>:
+00000102 <__vector_14>:
 }
 
-void TLC5940_SetGS_And_GS_PWM(void) {
-	uint8_t firstCycleFlag = 0;
+ISR(TIMER0_COMPA_vect) {
+ 102:	1f 92       	push	r1
+ 104:	0f 92       	push	r0
+ 106:	0f b6       	in	r0, 0x3f	; 63
+ 108:	0f 92       	push	r0
+ 10a:	11 24       	eor	r1, r1
+ 10c:	2f 93       	push	r18
+ 10e:	8f 93       	push	r24
+ 110:	9f 93       	push	r25
+ 112:	ef 93       	push	r30
+ 114:	ff 93       	push	r31
+	static uint8_t latchNeedsPulse = 0;
 	
-	if (outputState(VPRG_PORT, VPRG_PIN)) {
-  ee:	5f 9b       	sbis	0x0b, 7	; 11
-  f0:	03 c0       	rjmp	.+6      	; 0xf8 <TLC5940_SetGS_And_GS_PWM+0xa>
-		setLow(VPRG_PORT, VPRG_PIN);
-  f2:	5f 98       	cbi	0x0b, 7	; 11
-		firstCycleFlag = 1;
-  f4:	41 e0       	ldi	r20, 0x01	; 1
-  f6:	01 c0       	rjmp	.+2      	; 0xfa <TLC5940_SetGS_And_GS_PWM+0xc>
+	BLANK_PORT |= (1 << BLANK_PIN);			// Set blank output pin high
+ 116:	2a 9a       	sbi	0x05, 2	; 5
+	
+	if (VPRG_PORT & (1 << VPRG_PIN)) {
+ 118:	5f 9b       	sbis	0x0b, 7	; 11
+ 11a:	0c c0       	rjmp	.+24     	; 0x134 <__vector_14+0x32>
+		VPRG_PORT &= ~(1 << VPRG_PIN);		// Set mode selection pin low
+ 11c:	5f 98       	cbi	0x0b, 7	; 11
+		
+		if (latchNeedsPulse) {
+ 11e:	80 91 24 01 	lds	r24, 0x0124
+ 122:	88 23       	and	r24, r24
+ 124:	21 f0       	breq	.+8      	; 0x12e <__vector_14+0x2c>
+			XLAT_PORT |= (1 << XLAT_PIN);	// Pulse latch signal pin
+ 126:	29 9a       	sbi	0x05, 1	; 5
+			XLAT_PORT &= ~(1 << XLAT_PIN);
+ 128:	29 98       	cbi	0x05, 1	; 5
+			latchNeedsPulse = 0;
+ 12a:	10 92 24 01 	sts	0x0124, r1
 		}
+		
+		SCLK_PORT |= (1 << SCLK_PIN);		// Pulse serial data clock pin
+ 12e:	2d 9a       	sbi	0x05, 5	; 5
+		SCLK_PORT &= ~(1 << SCLK_PIN);
+ 130:	2d 98       	cbi	0x05, 5	; 5
+ 132:	08 c0       	rjmp	.+16     	; 0x144 <__vector_14+0x42>
+		
+		} else if (latchNeedsPulse) {
+ 134:	80 91 24 01 	lds	r24, 0x0124
+ 138:	88 23       	and	r24, r24
+ 13a:	21 f0       	breq	.+8      	; 0x144 <__vector_14+0x42>
+		XLAT_PORT |= (1 << XLAT_PIN);		// Pulse latch signal pin
+ 13c:	29 9a       	sbi	0x05, 1	; 5
+		XLAT_PORT &= ~(1 << XLAT_PIN);
+ 13e:	29 98       	cbi	0x05, 1	; 5
+		latchNeedsPulse = 0;
+ 140:	10 92 24 01 	sts	0x0124, r1
 	}
+	
+	BLANK_PORT &= ~(1 << BLANK_PIN);		// Set blank output pin low
+ 144:	2a 98       	cbi	0x05, 2	; 5
+ 146:	e0 e0       	ldi	r30, 0x00	; 0
+ 148:	f1 e0       	ldi	r31, 0x01	; 1
+ 14a:	88 e1       	ldi	r24, 0x18	; 24
+ 14c:	91 e0       	ldi	r25, 0x01	; 1
+	
+	// Below this we have 4096 cycles to shift in the data for the next cycle
+	for (gsData_t i = 0; i < gsDataSize; i++) {
+		SPDR = gsData[i];
+ 14e:	21 91       	ld	r18, Z+
+ 150:	2e bd       	out	0x2e, r18	; 46
+		while (!(SPSR & (1 << SPIF)));
+ 152:	0d b4       	in	r0, 0x2d	; 45
+ 154:	07 fe       	sbrs	r0, 7
+ 156:	fd cf       	rjmp	.-6      	; 0x152 <__vector_14+0x50>
+	}
+	
+	BLANK_PORT &= ~(1 << BLANK_PIN);		// Set blank output pin low
+	
+	// Below this we have 4096 cycles to shift in the data for the next cycle
+	for (gsData_t i = 0; i < gsDataSize; i++) {
+ 158:	e8 17       	cp	r30, r24
+ 15a:	f9 07       	cpc	r31, r25
+ 15c:	c1 f7       	brne	.-16     	; 0x14e <__vector_14+0x4c>
+		SPDR = gsData[i];
+		while (!(SPSR & (1 << SPIF)));
+	}
+	latchNeedsPulse = 1;
+ 15e:	81 e0       	ldi	r24, 0x01	; 1
+ 160:	80 93 24 01 	sts	0x0124, r24
 }
+ 164:	ff 91       	pop	r31
+ 166:	ef 91       	pop	r30
+ 168:	9f 91       	pop	r25
+ 16a:	8f 91       	pop	r24
+ 16c:	2f 91       	pop	r18
+ 16e:	0f 90       	pop	r0
+ 170:	0f be       	out	0x3f, r0	; 63
+ 172:	0f 90       	pop	r0
+ 174:	1f 90       	pop	r1
+ 176:	18 95       	reti
 
-void TLC5940_SetGS_And_GS_PWM(void) {
-	uint8_t firstCycleFlag = 0;
-  f8:	40 e0       	ldi	r20, 0x00	; 0
-	}
-	
-	uint16_t GSCLK_Counter = 0;
-	uint8_t Data_Counter = 0;
-	
-	setLow(BLANK_PORT, BLANK_PIN);
-  fa:	2a 98       	cbi	0x05, 2	; 5
-  fc:	80 e0       	ldi	r24, 0x00	; 0
-  fe:	90 e1       	ldi	r25, 0x10	; 16
-		setLow(VPRG_PORT, VPRG_PIN);
-		firstCycleFlag = 1;
-	}
-	
-	uint16_t GSCLK_Counter = 0;
-	uint8_t Data_Counter = 0;
- 100:	20 e0       	ldi	r18, 0x00	; 0
- 102:	08 c0       	rjmp	.+16     	; 0x114 <TLC5940_SetGS_And_GS_PWM+0x26>
-	
-	setLow(BLANK_PORT, BLANK_PIN);
-	for (;;) {
-		if (GSCLK_Counter > 4095) {
-			setHigh(BLANK_PORT, BLANK_PIN);
- 104:	2a 9a       	sbi	0x05, 2	; 5
-			pulse(XLAT_PORT, XLAT_PIN);
- 106:	29 9a       	sbi	0x05, 1	; 5
- 108:	29 98       	cbi	0x05, 1	; 5
-			if (firstCycleFlag) {
- 10a:	44 23       	and	r20, r20
- 10c:	c1 f0       	breq	.+48     	; 0x13e <TLC5940_SetGS_And_GS_PWM+0x50>
-				pulse(SCLK_PORT, SCLK_PIN);
- 10e:	2d 9a       	sbi	0x05, 5	; 5
- 110:	2d 98       	cbi	0x05, 5	; 5
- 112:	08 95       	ret
-				firstCycleFlag = 0;
-			}
-			break;
-			} else {
-			if (!(Data_Counter > TLC5940_N * 192 - 1)) {
- 114:	20 3c       	cpi	r18, 0xC0	; 192
- 116:	68 f4       	brcc	.+26     	; 0x132 <TLC5940_SetGS_And_GS_PWM+0x44>
-				if (gsData[Data_Counter])
- 118:	e2 2f       	mov	r30, r18
- 11a:	f0 e0       	ldi	r31, 0x00	; 0
- 11c:	e0 56       	subi	r30, 0x60	; 96
- 11e:	fc 4f       	sbci	r31, 0xFC	; 252
- 120:	30 81       	ld	r19, Z
- 122:	33 23       	and	r19, r19
- 124:	11 f0       	breq	.+4      	; 0x12a <TLC5940_SetGS_And_GS_PWM+0x3c>
-				setHigh(SIN_PORT, SIN_PIN);
- 126:	2b 9a       	sbi	0x05, 3	; 5
- 128:	01 c0       	rjmp	.+2      	; 0x12c <TLC5940_SetGS_And_GS_PWM+0x3e>
-				else
-				setLow(SIN_PORT, SIN_PIN);
- 12a:	2b 98       	cbi	0x05, 3	; 5
-				pulse(SCLK_PORT, SCLK_PIN);
- 12c:	2d 9a       	sbi	0x05, 5	; 5
- 12e:	2d 98       	cbi	0x05, 5	; 5
-				Data_Counter++;
- 130:	2f 5f       	subi	r18, 0xFF	; 255
-			}
-		}
-		pulse(GSCLK_PORT, GSCLK_PIN);
- 132:	28 9a       	sbi	0x05, 0	; 5
- 134:	28 98       	cbi	0x05, 0	; 5
- 136:	01 97       	sbiw	r24, 0x01	; 1
-	uint16_t GSCLK_Counter = 0;
-	uint8_t Data_Counter = 0;
-	
-	setLow(BLANK_PORT, BLANK_PIN);
-	for (;;) {
-		if (GSCLK_Counter > 4095) {
- 138:	00 97       	sbiw	r24, 0x00	; 0
- 13a:	61 f7       	brne	.-40     	; 0x114 <TLC5940_SetGS_And_GS_PWM+0x26>
- 13c:	e3 cf       	rjmp	.-58     	; 0x104 <TLC5940_SetGS_And_GS_PWM+0x16>
- 13e:	08 95       	ret
-
-00000140 <timer_Init>:
-#include <avr/io.h>
-#include <avr/interrupt.h>
-
-void timer_Init(void) {
-	// Set the Timer Mode to CTC
-	TCCR0A |= (1 << WGM01);
- 140:	84 b5       	in	r24, 0x24	; 36
- 142:	82 60       	ori	r24, 0x02	; 2
- 144:	84 bd       	out	0x24, r24	; 36
-
-	// Set the value that you want to count to
-	// OCRn =  [ (clock_speed / Prescaler_value) * Desired_time_in_Seconds ] - 1
-	OCR0A = 0xFF;
- 146:	8f ef       	ldi	r24, 0xFF	; 255
- 148:	87 bd       	out	0x27, r24	; 39
-
-	TIMSK0 |= (1 << OCIE0A);    // Set the ISR COMPA_vect
- 14a:	ee e6       	ldi	r30, 0x6E	; 110
- 14c:	f0 e0       	ldi	r31, 0x00	; 0
- 14e:	80 81       	ld	r24, Z
- 150:	82 60       	ori	r24, 0x02	; 2
- 152:	80 83       	st	Z, r24
-
-	sei();	// Enable interrupts
- 154:	78 94       	sei
-
-	// Set prescaler to 256 and start the timer
-	TCCR0B |= (1 << CS00);
- 156:	85 b5       	in	r24, 0x25	; 37
- 158:	81 60       	ori	r24, 0x01	; 1
- 15a:	85 bd       	out	0x25, r24	; 37
-	TCCR0B |= (1 << CS02);
- 15c:	85 b5       	in	r24, 0x25	; 37
- 15e:	84 60       	ori	r24, 0x04	; 4
- 160:	85 bd       	out	0x25, r24	; 37
- 162:	08 95       	ret
-
-00000164 <__vector_14>:
-}
-
-// timer0 overflow interrupt
-ISR (TIMER0_COMPA_vect) {
- 164:	1f 92       	push	r1
- 166:	0f 92       	push	r0
- 168:	0f b6       	in	r0, 0x3f	; 63
- 16a:	0f 92       	push	r0
- 16c:	11 24       	eor	r1, r1
- 16e:	2f 93       	push	r18
- 170:	8f 93       	push	r24
- 172:	9f 93       	push	r25
- 174:	af 93       	push	r26
- 176:	bf 93       	push	r27
- 178:	ef 93       	push	r30
- 17a:	ff 93       	push	r31
-	//event to be executed every Xs here
-	
-	if (which_array == 0) {
- 17c:	80 91 60 04 	lds	r24, 0x0460
- 180:	90 91 61 04 	lds	r25, 0x0461
- 184:	89 2b       	or	r24, r25
- 186:	a9 f4       	brne	.+42     	; 0x1b2 <__vector_14+0x4e>
- 188:	e0 e8       	ldi	r30, 0x80	; 128
- 18a:	f2 e0       	ldi	r31, 0x02	; 2
- 18c:	a0 ea       	ldi	r26, 0xA0	; 160
- 18e:	b3 e0       	ldi	r27, 0x03	; 3
- 190:	80 e4       	ldi	r24, 0x40	; 64
- 192:	93 e0       	ldi	r25, 0x03	; 3
-		for (int i = 0; i < (192 * TLC5940_N); i++) {
-			gsData[i] = gsData1[i];
- 194:	21 91       	ld	r18, Z+
- 196:	2d 93       	st	X+, r18
-// timer0 overflow interrupt
-ISR (TIMER0_COMPA_vect) {
-	//event to be executed every Xs here
-	
-	if (which_array == 0) {
-		for (int i = 0; i < (192 * TLC5940_N); i++) {
- 198:	e8 17       	cp	r30, r24
- 19a:	f9 07       	cpc	r31, r25
- 19c:	d9 f7       	brne	.-10     	; 0x194 <__vector_14+0x30>
-			gsData[i] = gsData1[i];
-		}
-		which_array++;
- 19e:	80 91 60 04 	lds	r24, 0x0460
- 1a2:	90 91 61 04 	lds	r25, 0x0461
- 1a6:	01 96       	adiw	r24, 0x01	; 1
- 1a8:	90 93 61 04 	sts	0x0461, r25
- 1ac:	80 93 60 04 	sts	0x0460, r24
- 1b0:	2a c0       	rjmp	.+84     	; 0x206 <__vector_14+0xa2>
-	} else if (which_array == 1) {
- 1b2:	80 91 60 04 	lds	r24, 0x0460
- 1b6:	90 91 61 04 	lds	r25, 0x0461
- 1ba:	01 97       	sbiw	r24, 0x01	; 1
- 1bc:	a9 f4       	brne	.+42     	; 0x1e8 <__vector_14+0x84>
- 1be:	e0 ec       	ldi	r30, 0xC0	; 192
- 1c0:	f1 e0       	ldi	r31, 0x01	; 1
- 1c2:	a0 ea       	ldi	r26, 0xA0	; 160
- 1c4:	b3 e0       	ldi	r27, 0x03	; 3
- 1c6:	80 e8       	ldi	r24, 0x80	; 128
- 1c8:	92 e0       	ldi	r25, 0x02	; 2
-		for (int i = 0; i < (192 * TLC5940_N); i++) {
-			gsData[i] = gsData2[i];
- 1ca:	21 91       	ld	r18, Z+
- 1cc:	2d 93       	st	X+, r18
-		for (int i = 0; i < (192 * TLC5940_N); i++) {
-			gsData[i] = gsData1[i];
-		}
-		which_array++;
-	} else if (which_array == 1) {
-		for (int i = 0; i < (192 * TLC5940_N); i++) {
- 1ce:	e8 17       	cp	r30, r24
- 1d0:	f9 07       	cpc	r31, r25
- 1d2:	d9 f7       	brne	.-10     	; 0x1ca <__vector_14+0x66>
-			gsData[i] = gsData2[i];
-		}
-		which_array++;
- 1d4:	80 91 60 04 	lds	r24, 0x0460
- 1d8:	90 91 61 04 	lds	r25, 0x0461
- 1dc:	01 96       	adiw	r24, 0x01	; 1
- 1de:	90 93 61 04 	sts	0x0461, r25
- 1e2:	80 93 60 04 	sts	0x0460, r24
- 1e6:	0f c0       	rjmp	.+30     	; 0x206 <__vector_14+0xa2>
- 1e8:	e0 e0       	ldi	r30, 0x00	; 0
- 1ea:	f1 e0       	ldi	r31, 0x01	; 1
- 1ec:	a0 ea       	ldi	r26, 0xA0	; 160
- 1ee:	b3 e0       	ldi	r27, 0x03	; 3
- 1f0:	80 ec       	ldi	r24, 0xC0	; 192
- 1f2:	91 e0       	ldi	r25, 0x01	; 1
-	} else  {
-		for (int i = 0; i < (192 * TLC5940_N); i++) {
-			gsData[i] = gsData3[i];
- 1f4:	21 91       	ld	r18, Z+
- 1f6:	2d 93       	st	X+, r18
-		for (int i = 0; i < (192 * TLC5940_N); i++) {
-			gsData[i] = gsData2[i];
-		}
-		which_array++;
-	} else  {
-		for (int i = 0; i < (192 * TLC5940_N); i++) {
- 1f8:	e8 17       	cp	r30, r24
- 1fa:	f9 07       	cpc	r31, r25
- 1fc:	d9 f7       	brne	.-10     	; 0x1f4 <__vector_14+0x90>
-			gsData[i] = gsData3[i];
-		}
-		which_array = 0;
- 1fe:	10 92 61 04 	sts	0x0461, r1
- 202:	10 92 60 04 	sts	0x0460, r1
-	}
-}
- 206:	ff 91       	pop	r31
- 208:	ef 91       	pop	r30
- 20a:	bf 91       	pop	r27
- 20c:	af 91       	pop	r26
- 20e:	9f 91       	pop	r25
- 210:	8f 91       	pop	r24
- 212:	2f 91       	pop	r18
- 214:	0f 90       	pop	r0
- 216:	0f be       	out	0x3f, r0	; 63
- 218:	0f 90       	pop	r0
- 21a:	1f 90       	pop	r1
- 21c:	18 95       	reti
-
-0000021e <main>:
+00000178 <main>:
 
 int main(void) {
+	setup();
+ 178:	0e 94 53 00 	call	0xa6	; 0xa6 <setup>
+	TLC5940_ClockInDC();
+ 17c:	0e 94 70 00 	call	0xe0	; 0xe0 <TLC5940_ClockInDC>
 	
-	timer_Init();
- 21e:	0e 94 a0 00 	call	0x140	; 0x140 <timer_Init>
-	TLC5940_Init();
- 222:	0e 94 53 00 	call	0xa6	; 0xa6 <TLC5940_Init>
-	TLC5940_ClockInDC();	// try it both with and without this line
- 226:	0e 94 61 00 	call	0xc2	; 0xc2 <TLC5940_ClockInDC>
+	sei();		// Enable interrupts
+ 180:	78 94       	sei
+ 182:	ff cf       	rjmp	.-2      	; 0x182 <main+0xa>
 
-	while (1) {
-		TLC5940_SetGS_And_GS_PWM();
- 22a:	0e 94 77 00 	call	0xee	; 0xee <TLC5940_SetGS_And_GS_PWM>
- 22e:	fd cf       	rjmp	.-6      	; 0x22a <main+0xc>
+00000184 <_exit>:
+ 184:	f8 94       	cli
 
-00000230 <_exit>:
- 230:	f8 94       	cli
-
-00000232 <__stop_program>:
- 232:	ff cf       	rjmp	.-2      	; 0x232 <__stop_program>
+00000186 <__stop_program>:
+ 186:	ff cf       	rjmp	.-2      	; 0x186 <__stop_program>

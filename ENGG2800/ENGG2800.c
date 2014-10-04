@@ -526,11 +526,7 @@ int main(void) {
 #define setOutput(ddr, pin) ((ddr) |= (1 << (pin)))
 #define setLow(port, pin) ((port) &= ~(1 << (pin)))
 #define setHigh(port, pin) ((port) |= (1 << (pin)))
-#define pulse(port, pin) do { \
-	setHigh((port), (pin)); \
-	setLow((port), (pin)); \
-} while (0)
-#define outputState(port, pin) ((port) & (1 << (pin)))
+
 
 #if (12 * TLC5940_N > 255)
 #define dcData_t uint16_t
@@ -589,85 +585,85 @@ uint8_t gsData[24 * TLC5940_N] = {
 	0b11111111,
 };
 
-void TLC5940_Init(void) {
-	setOutput(GSCLK_DDR, GSCLK_PIN);
-	setOutput(SCLK_DDR, SCLK_PIN);
-	setOutput(DCPRG_DDR, DCPRG_PIN);
-	setOutput(VPRG_DDR, VPRG_PIN);
-	setOutput(XLAT_DDR, XLAT_PIN);
-	setOutput(BLANK_DDR, BLANK_PIN);
-	setOutput(SIN_DDR, SIN_PIN);
+void setup(void) {
 	
-	setLow(GSCLK_DDR, GSCLK_PIN);
-	setLow(SCLK_PORT, SCLK_PIN);
-	setLow(DCPRG_PORT, DCPRG_PIN);
-	setHigh(VPRG_PORT, VPRG_PIN);
-	setLow(XLAT_PORT, XLAT_PIN);
-	setHigh(BLANK_PORT, BLANK_PIN);
+	GSCLK_DDR |= (1 << GSCLK_PIN);		// Grayscale PWM reference clock
+	SCLK_DDR |= (1 << SCLK_PIN);		// Serial data shift clock
+	DCPRG_DDR |= (1 << DCPRG_PIN);		// Dot correction programming
+	VPRG_DDR |= (1 << VPRG_PIN);		// Mode selection
+	XLAT_DDR |= (1 << XLAT_PIN);		// Latch signal
+	BLANK_DDR |= (1 << BLANK_PIN);		// Blank all outputs 
+	SIN_DDR |= (1 << SIN_PIN);			// Serial data output > input
+	
+	GSCLK_PORT &= ~(1 << GSCLK_PIN);	// Set grayscale clock pin low
+	SCLK_PORT &= ~(1 << SCLK_PIN);		// Set serial data shift clock pin low
+	DCPRG_PORT &= ~(1 << DCPRG_PIN);	// Set dot correction programming pin low
+	VPRG_PORT |= (1 << VPRG_PIN);		// Set mode selection pin high
+	XLAT_PORT &= ~(1 << XLAT_PIN);		// Set latch signal pin low
+	BLANK_PORT |= (1 << BLANK_PIN);		// Set blank output pin high
 
-	// Enable SPI, Master, set clock rate fck/2
-	SPCR = (1 << SPE) | (1 << MSTR);
-	SPSR = (1 << SPI2X);
+	SPCR = (1 << SPE)|(1 << MSTR);		// Enable SPI and Master
+	SPSR = (1 << SPI2X);				// Set clock rate fck/2
+	TCCR0A = (1 << WGM01);				// Set timer mode to CTC
+	TCCR0B = (1 << CS02)|(1 << CS00);	// Set prescaler to 1024 and start timer
 
-	// CTC with OCR0A as TOP
-	TCCR0A = (1 << WGM01);
-	// clk_io/1024 (From prescaler)
-	TCCR0B = ((1 << CS02) | (1 << CS00));
-	// Generate an interrupt every 4096 clock cycles
-	OCR0A = 3;
-	// Enable Timer/Counter0 Compare Match A interrupt
-	TIMSK0 |= (1 << OCIE0A);
+	// OCRn = [ (Clock speed / Prescale value) * (Desired time in seconds) ] - 1
+	OCR0A = 3;							// Interrupt every 4096 clock cycles
+	TIMSK0 |= (1 << OCIE0A);			// Enable Timer0 Match A interrupt
 }
 
 void TLC5940_ClockInDC(void) {
-	setHigh(DCPRG_PORT, DCPRG_PIN);
-	setHigh(VPRG_PORT, VPRG_PIN);
+	DCPRG_PORT |= (1 << DCPRG_PIN);		// Set dot correction pin high
+	VPRG_PORT |= (1 << VPRG_PIN);		// Set mode selection pin high
 	
 	for (dcData_t i = 0; i < dcDataSize; i++) {
-		// Start transmission
-		SPDR = dcData[i];
-		// Wait for transmission complete
-		while (!(SPSR & (1 << SPIF)));
+		SPDR = dcData[i];				// Start transmission
+		while (!(SPSR & (1 << SPIF)));	// Wait for transmission complete
 	}
-	pulse(XLAT_PORT, XLAT_PIN);
+	XLAT_PORT |= (1 << XLAT_PIN);
+	XLAT_PORT &= ~(1 << XLAT_PIN);
 }
 
 ISR(TIMER0_COMPA_vect) {
-	static uint8_t xlatNeedsPulse = 0;
+	static uint8_t latchNeedsPulse = 0;
 	
-	setHigh(BLANK_PORT, BLANK_PIN);
+	BLANK_PORT |= (1 << BLANK_PIN);			// Set blank output pin high
 	
-	if (outputState(VPRG_PORT, VPRG_PIN)) {
-		setLow(VPRG_PORT, VPRG_PIN);
-		if (xlatNeedsPulse) {
-			pulse(XLAT_PORT, XLAT_PIN);
-			xlatNeedsPulse = 0;
+	if (VPRG_PORT & (1 << VPRG_PIN)) {
+		VPRG_PORT &= ~(1 << VPRG_PIN);		// Set mode selection pin low
+		
+		if (latchNeedsPulse) {
+			XLAT_PORT |= (1 << XLAT_PIN);	// Pulse latch signal pin
+			XLAT_PORT &= ~(1 << XLAT_PIN);
+			latchNeedsPulse = 0;
 		}
-		pulse(SCLK_PORT, SCLK_PIN);
-		} else if (xlatNeedsPulse) {
-		pulse(XLAT_PORT, XLAT_PIN);
-		xlatNeedsPulse = 0;
+		
+		SCLK_PORT |= (1 << SCLK_PIN);		// Pulse serial data clock pin
+		SCLK_PORT &= ~(1 << SCLK_PIN);
+		
+		} else if (latchNeedsPulse) {
+		XLAT_PORT |= (1 << XLAT_PIN);		// Pulse latch signal pin
+		XLAT_PORT &= ~(1 << XLAT_PIN);
+		latchNeedsPulse = 0;
 	}
 	
-	setLow(BLANK_PORT, BLANK_PIN);
+	BLANK_PORT &= ~(1 << BLANK_PIN);		// Set blank output pin low
 	
 	// Below this we have 4096 cycles to shift in the data for the next cycle
 	for (gsData_t i = 0; i < gsDataSize; i++) {
 		SPDR = gsData[i];
 		while (!(SPSR & (1 << SPIF)));
 	}
-	xlatNeedsPulse = 1;
+	latchNeedsPulse = 1;
 }
 
 int main(void) {
-	TLC5940_Init();
+	setup();
 	TLC5940_ClockInDC();
 	
-	// Enable Global Interrupts
-	sei();
+	sei();		// Enable interrupts
 
-	for (;;) {
-	}
+	while (1);
 	
 	return 0;
 }
