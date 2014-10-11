@@ -314,11 +314,22 @@ int main(void) {
 }
 */
 
+/* When programming, ensure fuses are set as follows:
+ * LFUSE = 0xFF
+ * HFUSE = 0xDE
+ * EFUSE = 0x05
+ */
+
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
+
+#define F_CPU 16000000
+#define USART_BAUDRATE 19200
+#define UBRR_VALUE ((F_CPU / (USART_BAUDRATE * 16UL)) - 1)
 
 #define GSCLK_DDR DDRB
 #define GSCLK_PORT PORTB
@@ -423,8 +434,8 @@ uint8_t gsData[24 * TLC5940_N] = {
 	0b00001111,
 	0b11111111,
 	
-	0b11111111, 
-	0b11111000,
+	0b11111111,	 
+	0b11111000, 
 	0b00000000,
 	0b01000000,
 	0b00000010,
@@ -446,6 +457,45 @@ uint8_t gsData[24 * TLC5940_N] = {
 	0b00000000,
 	0b00000000,
 	0b00000000,
+	0b00000000,
+};
+
+uint8_t gsData1[16 * TLC5940_N] = {
+	0b11111111,
+	0b10000000,
+	0b01000000,
+	0b00100000,
+	0b00010000,
+	0b00001000,
+	0b00000100,
+	0b00000010,
+	0b00000001,
+	0b00000000,
+	
+	0b00000000,
+	
+	0b00000000,
+	0b00000001,
+	0b00000010,
+	0b00000100,
+	0b00001000,
+	0b00010000,
+	0b00100000,
+	0b01000000,
+	0b10000000,
+	0b11111111,	
+	
+	0b11111111,
+	0b10000000,
+	0b01000000,
+	0b00100000,
+	0b00010000,
+	0b00001000,
+	0b00000100,
+	0b00000010,
+	0b00000001,
+	0b00000000,
+	
 	0b00000000,
 };
 
@@ -478,9 +528,15 @@ void setup(void) {
 	TIMSK0 |= (1 << OCIE0A);			// Enable Timer0 Match A interrupt
 	
 	DDRC |= (1 << PINC4);				// Declare test LED as output
+	
+	UBRR0 = 51;							// Set baudrate to 19200
+	
+	/* Enable UART transmission and reception */
+	UCSR0B = (1 << RXCIE0)|(1 << RXEN0)|(1 << TXEN0);
+	UCSR0A = (0 << U2X0);				// Enable Receive Complete Interrupt
 }
 
-/* Get dot correction values */
+/* Get dot correction values upon initialization */
 void getDC(void) {
 	DCPRG_PORT |= (1 << DCPRG_PIN);		// Set dot correction pin high
 	VPRG_PORT |= (1 << VPRG_PIN);		// Set mode selection pin high
@@ -519,11 +575,34 @@ ISR(TIMER0_COMPA_vect) {
 	BLANK_PORT &= ~(1 << BLANK_PIN);		// Set blank output pin low
 	
 	// Below this we have 4096 cycles to shift in the data for the next cycle
-	for (gsData_t i = 0; i < gsDataSize; i++) {
+
+	/*
+	for (int i = 0; i < 32; i++) {
+		for (int j = 0; j < 8; j++) {
+			SPDR = gsData[index];	
+		}
+		while (!(SPSR & (1 << SPIF)));
+	}*/
+	for (int i = 0; i < gsDataSize; i++) {
 		SPDR = gsData[i];
+		SPDR = 0;
 		while (!(SPSR & (1 << SPIF)));
 	}
-	latchNeedsPulse = 1;
+	latchNeedsPulse = 1; 
+}
+
+/* Interrupt handler for UART Receive Complete - i.e. a new byte has arrived in
+ * the UART Data Register (UDR).
+ */
+ISR(USART_RX_vect) {
+	char input;
+	input = UDR0;	// Extract character from UART Data Register
+	
+	if (input == 52) {
+		PORTC ^= (1 << PORTC4);		// Toggle the test LED
+	}
+	
+	UDR0 = input;	// Send character back over serial communication
 }
 
 int main(void) {
