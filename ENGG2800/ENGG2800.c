@@ -40,25 +40,13 @@
 
 #define TLC5940_N 2
 
-/*#define setOutput(ddr, pin) ((ddr) |= (1 << (pin)))
-#define setLow(port, pin) ((port) &= ~(1 << (pin)))
-#define setHigh(port, pin) ((port) |= (1 << (pin)))*/
-
-
-#if (12 * TLC5940_N > 255)
-#define dcData_t uint16_t
-#else
 #define dcData_t uint8_t
-#endif
-
-#if (24 * TLC5940_N > 255)
-#define gsData_t uint16_t
-#else
 #define gsData_t uint8_t
-#endif
 
 #define dcDataSize ((dcData_t)12 * TLC5940_N)
-#define gsDataSize ((gsData_t)24 * TLC5940_N)
+#define gsDataSize ((gsData_t)16 * TLC5940_N)
+
+volatile unsigned int ledRef = 0;
 
 uint8_t dcData[12 * TLC5940_N] = {
 	0b11111111,
@@ -73,6 +61,7 @@ uint8_t dcData[12 * TLC5940_N] = {
 	0b11111111,
 	0b11111111,
 	0b11111111,
+	
 	0b11111111,
 	0b11111111,
 	0b11111111,
@@ -87,52 +76,74 @@ uint8_t dcData[12 * TLC5940_N] = {
 	0b11111111,
 };
 
-uint8_t gsData[24 * TLC5940_N] = {
+uint8_t gsData1[16 * TLC5940_N] = {
+// MSB		LSB
+	0b11111111,		// Channel 17
+	0b10000000,		// Channel 18
+	0b01000000,		// Channel 19
+	0b00100000,		// Channel 20
+	0b00010000,		// Channel 21
+	0b00001000,		// Channel 22
+	0b00000100,		// Channel 23
+	0b00000010,		// Channel 24
+	0b00000001,		// Channel 25
+	0b00000000,		// Channel 26
+	0b00000000,		// Channel 27
+	0b00000000,		// Channel 28
+	0b00000000,		// Channel 29
+	0b00000000,		// Channel 30
+	0b00000000,		// Channel 31
+	0b00000000,		// Channel 32
+// MSB		LSB	
+	0b00000000,		// Channel 1
+	0b00000000,		// Channel 2
+	0b00000000,		// Channel 3
+	0b00000000,		// Channel 4
+	0b00000000,		// Channel 5
+	0b00000000,		// Channel 6
+	0b00000000,		// Channel 7
+	0b00000001,		// Channel 8
+	0b00000010,		// Channel 9
+	0b00000100,		// Channel 10
+	0b00001000,		// Channel 11
+	0b00010000,		// Channel 12
+	0b00100000,		// Channel 13
+	0b01000000,		// Channel 14
+	0b10000000,		// Channel 15
+	0b11111111,		// Channel 16
+};
+
+volatile uint8_t gsData2[16 * TLC5940_N] = {
+// MSB		LSB	
+	0b00000000,		
 	0b00000000,
 	0b00000000,
 	0b00000000,
 	0b00000000,
 	0b00000000,
-	0b00000001,
 	0b00000000,
-	0b00100000,
-	0b00000100,
 	0b00000000,
-	0b10000000,
-	0b00010000,
-	0b00000010,
 	0b00000000,
-	0b01000000,
-	0b00001000,
-	0b00000001,
 	0b00000000,
-	0b00100000,
-	0b00000100,
 	0b00000000,
-	0b10000000,
-	0b00001111,
-	0b11111111,
-	
-	0b11111111, 
-	0b11111000,
 	0b00000000,
-	0b01000000,
-	0b00000010,
 	0b00000000,
-	0b00010000,
 	0b00000000,
-	0b10000000,
-	0b00000100,
 	0b00000000,
-	0b00100000,
-	0b00000001,
 	0b00000000,
-	0b00001000,
+
 	0b00000000,
-	0b01000000,
-	0b00000010,
 	0b00000000,
-	0b00010000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
+	0b00000000,
 	0b00000000,
 	0b00000000,
 	0b00000000,
@@ -185,6 +196,7 @@ void getDC(void) {
 		SPDR = dcData[i];				// Start transmission
 		while (!(SPSR & (1 << SPIF)));	// Wait for transmission complete
 	}
+	
 	XLAT_PORT |= (1 << XLAT_PIN);
 	XLAT_PORT &= ~(1 << XLAT_PIN);
 }
@@ -206,7 +218,7 @@ ISR(TIMER0_COMPA_vect) {
 		SCLK_PORT |= (1 << SCLK_PIN);		// Pulse serial data clock pin
 		SCLK_PORT &= ~(1 << SCLK_PIN);
 		
-		} else if (latchNeedsPulse) {
+	} else if (latchNeedsPulse) {
 		XLAT_PORT |= (1 << XLAT_PIN);		// Pulse latch signal pin
 		XLAT_PORT &= ~(1 << XLAT_PIN);
 		latchNeedsPulse = 0;
@@ -215,10 +227,31 @@ ISR(TIMER0_COMPA_vect) {
 	BLANK_PORT &= ~(1 << BLANK_PIN);		// Set blank output pin low
 	
 	// Below this we have 4096 cycles to shift in the data for the next cycle
+	
+	/*
 	for (gsData_t i = 0; i < gsDataSize; i++) {
 		SPDR = gsData[i];
 		while (!(SPSR & (1 << SPIF)));
-	}
+	} */
+    
+    for (gsData_t i = 0; i < gsDataSize; i++) {
+	    if (i%2 == 0) {
+			SPDR = gsData2[i];				// Start transmission
+			while (!(SPSR & (1 << SPIF)));	// Wait for transmission to complete
+		
+		} else {
+			int8_t buffer;
+		    
+			buffer = (gsData2[i] >> 4);		
+			SPDR = buffer;					// Start transmission
+			while (!(SPSR & (1 << SPIF)));	// Wait for transmission to complete
+		    
+			buffer = (gsData2[i] << 4);		
+		    SPDR = buffer;					// Start transmission
+		    while (!(SPSR & (1 << SPIF)));	// Wait for transmission to complete
+	    }
+    } 
+	
 	latchNeedsPulse = 1;
 }
 
@@ -226,12 +259,16 @@ ISR(TIMER0_COMPA_vect) {
  * the UART Data Register (UDR).
  */
 ISR(USART_RX_vect) {
-	char input;
+	int8_t input;
 	input = UDR0;	// Extract character from UART Data Register
 	
-	if (input == 52) {
-		PORTC ^= (1 << PORTC4);		// Toggle the test LED
+	PORTC ^= (1 << PORTC4);		// Toggle the test LED
+	
+	if (ledRef < 32) {
+		gsData2[ledRef] = input;
+		ledRef++;
 	}
+	
 	
 	UDR0 = input;	// Send character back over serial communication
 }
@@ -246,4 +283,3 @@ int main(void) {
 	
 	return 0;
 }
-
