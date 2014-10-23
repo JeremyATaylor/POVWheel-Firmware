@@ -48,6 +48,14 @@
 
 volatile unsigned int ledRef = 0;
 
+#define F_CPU 16000000          // Clock, oscillator frequency
+#define I2C_BAUDRATE 400000     // Max. 400kHz for 2.5V < Vcc < 5.5V
+
+#define BDIV (F_CPU / I2C_BAUDRATE - 16) / 2 + 1
+
+
+
+
 uint8_t dcData[12 * TLC5940_N] = {
 	0b11111111,
 	0b11111111,
@@ -76,7 +84,7 @@ uint8_t dcData[12 * TLC5940_N] = {
 	0b11111111,
 };
 
-uint8_t gsData1[16 * TLC5940_N] = {
+uint8_t gsData[16 * TLC5940_N] = {
 // MSB		LSB
 	0b11111111,		// Channel 17
 	0b10000000,		// Channel 18
@@ -113,7 +121,8 @@ uint8_t gsData1[16 * TLC5940_N] = {
 	0b11111111,		// Channel 16
 };
 
-volatile uint8_t gsData2[16 * TLC5940_N] = {
+/*
+uint8_t gsData2[16 * TLC5940_N] = {
 // MSB		LSB	
 	0b00000000,		
 	0b00000000,
@@ -148,8 +157,15 @@ volatile uint8_t gsData2[16 * TLC5940_N] = {
 	0b00000000,
 	0b00000000,
 	0b00000000,
-};
+}; */
 
+/*
+ * Function: setup
+ * -------------------
+ * Setup the hardware. Declare required pins as inputs/outputs, initialize 
+ * TLC5940 LED drivers, initialise timers and enable UART transmission/reception.
+ *
+ */
 void setup(void) {
 	/* Declare pins as outputs */
 	GSCLK_DDR |= (1 << GSCLK_PIN);		// Grayscale PWM reference clock
@@ -178,17 +194,30 @@ void setup(void) {
 	OCR0A = 3;							// Interrupt every 4096 clock cycles
 	TIMSK0 |= (1 << OCIE0A);			// Enable Timer0 Match A interrupt
 	
-	DDRC |= (1 << PINC4);				// Declare test LED as output
+	DDRC |= (1 << PINC3);				// Declare test LED as output
 	
 	UBRR0 = 51;							// Set baudrate to 19200
 	
 	/* Enable UART transmission and reception */
 	UCSR0B = (1 << RXCIE0)|(1 << RXEN0)|(1 << TXEN0);
 	UCSR0A = (0 << U2X0);				// Enable Receive Complete Interrupt
+	
+	//int8_t eepromAddress = 0xA0;     // I2C device address for 24LC256
+
+	//TWSR = 0;       // Set prescale for 1
+	//TWBR = BDIV;    // Set bit rate register
+	
+	PORTC |= (1 << PORTC3);
 }
 
-/* Get dot correction values upon initialization */
-void getDC(void) {
+
+/*
+ * Function: get_DC
+ * -------------------
+ * Get dot correction values upon initialisation and store in array. 
+ * 
+ */
+void get_DC(void) {
 	DCPRG_PORT |= (1 << DCPRG_PIN);		// Set dot correction pin high
 	VPRG_PORT |= (1 << VPRG_PIN);		// Set mode selection pin high
 	
@@ -201,6 +230,129 @@ void getDC(void) {
 	XLAT_PORT &= ~(1 << XLAT_PIN);
 }
 
+
+/*
+ * Function: init_Mode2
+ * -------------------
+ * Following Test Mode 1, initialises Test Mode 2. Outermost LED grayscale 
+ * value is set to maximum brightness and all other LEDs are turned off.
+ *
+ */
+int init_Mode2(void) {
+    for (gsData_t i = 0; i < gsDataSize; i++) {
+        gsData[i] = 0b11111111;		// Set all grayscale values to max. brightness
+    }
+    
+    // Turn off rotation sensing
+    // Set display speed threshold to 0
+    
+    return 0;
+}
+
+/*
+ * Function: initMode3
+ * -------------------
+ * Following Test Mode 2, initialise Test Mode 3 by setting outermost LED grayscale 
+ * value to maximum brightness and all other LEDs off.
+ *
+ */
+int init_Mode3(void) {
+    for (gsData_t i = 0; i < gsDataSize; i++) {
+        gsData[i] = 0b00000000;		// Set all grayscale values to 0
+    }
+    gsData[15] = 0b11111111;        // Set outermost LED to max. brightness
+    
+    return 0;
+}
+
+
+// global variable to count the number of overflows
+volatile uint8_t tot_overflow;
+
+// initialize timer, interrupt and variable
+void init_Timer2() {
+	TCCR2A |= (1 << CS22)|(1 << CS21);	// Set prescaler to 256
+	TCNT2 = 0;							// Initialize counter
+	TIMSK2 |= (1 << TOIE2);				// Enable overflow interrupt
+	
+	overflow2 = 0;						// Set overflow counter
+}
+
+// TIMER0 overflow interrupt service routine
+// called whenever TCNT0 overflows
+ISR(TIMER2_OVF_vect) {
+	overflow2++;		// Increment overflow count
+}
+
+
+int main(void) {
+	setup();	// Initialize hardware
+	get_DC();	// Clock in dot correction data
+	sei();		// Enable interrupts
+
+	while(1);	// Infinite loop, waiting for interrupts
+	
+	return 0;
+} 
+
+/*
+int main(void) {
+    int modeNumber = 3;     // Test Mode: 1-3 for each respective mode, 0 is normal operation
+    int modeSwitch = 2;     // Boolean switch state: 1 is on, 0 is off
+	
+	setup();			// Initialize hardware
+	get_DC();			// Clock in dot correction data	
+	sei();				// Enable interrupts
+    
+    // Setup
+    if (modeSwitch == 0) {      // If mode switch off, normal mode
+        modeNumber = 0;
+    } else if (modeSwitch == 1) {
+        //initMode1();
+        modeNumber = 1;         // If mode switch on, enter test mode 1
+    }
+    
+    // Normal Mode
+    while (modeNumber == 0) {
+        printf("Normal Mode");
+    }
+    
+    // Test Mode 1: Normal operation at fixed rotation speed of 200rpm.
+    // Rotation sensing ignored and no standby mode.
+    while (modeNumber == 1) {
+        printf("Test Mode 1");
+        if (modeSwitch == 0) {      // If mode switch off, enter test mode 2
+			init_Mode2();
+            modeNumber = 2;
+        }
+    }
+
+    // Test Mode 2: All LEDs at maximum brightness, rotation sensing ignored
+    // and no standby mode. 
+    while (modeNumber == 2) {
+        printf("Test Mode 2");
+        if (modeSwitch == 1) {
+            init_Mode3();
+            modeNumber = 3;
+        }
+    }
+    
+    // Test Mode 3: Outermost LED at maximum brightness, all other LEDs off.
+    // Rotation sensing ignored and no standby mode.
+    while (modeNumber == 3) {
+        printf("Test Mode 3");
+    }
+    
+    return 0;
+} */
+
+
+/*
+ * Interrupt handler: TIMER0_COMPA_vect
+ * ------------------------------------
+ * Shifts new grayscale values through LED array for display.
+ * 
+ */
 ISR(TIMER0_COMPA_vect) {
 	static uint8_t latchNeedsPulse = 0;
 	
@@ -226,27 +378,22 @@ ISR(TIMER0_COMPA_vect) {
 	
 	BLANK_PORT &= ~(1 << BLANK_PIN);		// Set blank output pin low
 	
-	// Below this we have 4096 cycles to shift in the data for the next cycle
 	
-	/*
-	for (gsData_t i = 0; i < gsDataSize; i++) {
-		SPDR = gsData[i];
-		while (!(SPSR & (1 << SPIF)));
-	} */
+	// Below this we have 4096 cycles to shift in the data for the next cycle
     
     for (gsData_t i = 0; i < gsDataSize; i++) {
 	    if (i%2 == 0) {
-			SPDR = gsData2[i];				// Start transmission
+			SPDR = gsData[i];				// Start transmission
 			while (!(SPSR & (1 << SPIF)));	// Wait for transmission to complete
 		
 		} else {
 			int8_t buffer;
 		    
-			buffer = (gsData2[i] >> 4);		
+			buffer = (gsData[i] >> 4);		
 			SPDR = buffer;					// Start transmission
 			while (!(SPSR & (1 << SPIF)));	// Wait for transmission to complete
 		    
-			buffer = (gsData2[i] << 4);		
+			buffer = (gsData[i] << 4);		
 		    SPDR = buffer;					// Start transmission
 		    while (!(SPSR & (1 << SPIF)));	// Wait for transmission to complete
 	    }
@@ -255,31 +402,24 @@ ISR(TIMER0_COMPA_vect) {
 	latchNeedsPulse = 1;
 }
 
-/* Interrupt handler for UART Receive Complete - i.e. a new byte has arrived in
+
+/* 
+ * Interrupt handler: USART_RX_vect
+ * --------------------------------
+ * Interrupt handler for UART Receive Complete - i.e. a new byte has arrived in
  * the UART Data Register (UDR).
+ *
  */
 ISR(USART_RX_vect) {
 	int8_t input;
 	input = UDR0;	// Extract character from UART Data Register
 	
-	PORTC ^= (1 << PORTC4);		// Toggle the test LED
+	PORTC ^= (1 << PORTC3);		// Toggle the test LED
 	
 	if (ledRef < 32) {
-		gsData2[ledRef] = input;
+		gsData[ledRef] = input;
 		ledRef++;
 	}
 	
-	
 	UDR0 = input;	// Send character back over serial communication
-}
-
-int main(void) {
-	setup();	// Initialize hardware
-	getDC();	// Clock in dot correction data
-	
-	sei();		// Enable interrupts
-
-	while(1);	// Infinite loop, waiting for interrupts
-	
-	return 0;
 }
