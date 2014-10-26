@@ -2,8 +2,8 @@
  * NOTE: When programming the device, ensure fuses are set as follows:
  * -----
  * Extended Register: 0xFF
- * High Register: 0xDE
- * Low Register: 0xBF
+ * High Register: 0xD9
+ * Low Register: 0xAE
  *
  */
 
@@ -19,7 +19,6 @@
 #include <avr/sleep.h>
 #include <avr/power.h>
 #include <util/delay.h>
-
 
 #define USART_BAUDRATE 19200
 #define UBRR_VALUE ((F_CPU / (USART_BAUDRATE * 16UL)) - 1)
@@ -65,30 +64,17 @@
 
 #define SAVE_ADDRESS 0x4000
 
-#define CIRCUMFERENCE 1.76
-
-volatile uint8_t ledRef;
-volatile uint8_t dataIndex;
-volatile long DEGINTERVAL;		// Interval for each degree
-volatile long DISTANCE;			// Distance traveled since turned on
-volatile long DEG;				// Where the display is positioned
-volatile int MODENUM;			// Mode number
-volatile int TOOSLOW;
-volatile int SPEEDNUMS[3];
-volatile int DISTANCENUMS[3];
-volatile uint16_t TIMER;
-static uint8_t imageData[128];	//Image data recieved for 4 columns
-static uint8_t usbData[128];	//Immage data to be save 
-volatile uint8_t usbEnable;
-volatile uint8_t slowCounter;
-volatile uint8_t standbyEnable;
-
-volatile uint32_t thisPeriod;
-volatile int period;
-volatile uint8_t speed;
-volatile uint32_t rotationCount;
-volatile uint32_t distance;
-volatile uint8_t displayFlag;
+volatile uint16_t DEGINTERVAL;		// Interval for each degree
+volatile uint16_t DISTANCE;			// Distance traveled since turned on
+volatile uint16_t DEG;				// Where the display is positioned
+volatile int MODENUM;				// Mode number
+volatile int TOOSLOW;				// Slow rotation speed flag
+volatile uint16_t TIMER;			
+static uint8_t imageData[128];		// Image data buffer containing four columns
+static uint8_t usbData[128];		// Image data to be saved 
+volatile uint8_t usbEnable;			// USB communication flag
+volatile uint8_t slowCounter;		// Number of rotations below desired speed
+volatile uint8_t standbyEnable;		// Standby mode flag
 
 int initMode3(void);
 uint8_t USART0_Receive(void);
@@ -96,20 +82,22 @@ void USART0_Transmit(uint8_t data);
 void boot_program_page (uint32_t page, uint8_t *buf);
 void getDataFromFlash(uint16_t pageNum);
 void readUsb();
+void display(void);
 
+/* Dot correction data array */
 uint8_t dcData[12 * TLC5940_N] = {
+	0b11111111,		
+	0b11111111,		
+	0b11111111,		 
+	0b11111111,		
+	0b11111111,		
+	0b11111111,		
+	0b11111111,		
+	0b11111111,		
+	0b11111111,		
+	0b11111111,		
 	0b11111111,
-	0b11111111,
-	0b11111111,
-	0b11111111,
-	0b11111111,
-	0b11111111,
-	0b11111111,
-	0b11111111,
-	0b11111111,
-	0b11111111,
-	0b11111111,
-	0b11111111,
+	0b11111111,		
 	
 	0b11111111,
 	0b11111111,
@@ -125,6 +113,7 @@ uint8_t dcData[12 * TLC5940_N] = {
 	0b11111111,
 };
 
+/* Grayscale data array currently being displayed */
 uint8_t gsData[16 * TLC5940_N] = {
 // MSB		LSB	
 	0b00000000,		// Channel 1
@@ -162,7 +151,12 @@ uint8_t gsData[16 * TLC5940_N] = {
 	0b00000000,		// Channel 32
 };
 
-
+/*
+ * Function: setup
+ * ---------------
+ * Initialises the hardware, declaring inputs and outputs, setting up
+ * required timers and interrupts, and intial variable values.
+ */
 void setup(void) {
 	/* Declare pins as outputs */
 	GSCLK_DDR |= (1 << GSCLK_PIN);		// Grayscale PWM reference clock
@@ -181,36 +175,26 @@ void setup(void) {
 	XLAT_PORT &= ~(1 << XLAT_PIN);		// Set latch signal pin low
 	BLANK_PORT |= (1 << BLANK_PIN);		// Set blank output pin high
 
-	/* Initialize Timer0 */
+	/* Initialize Timer2 */
 	SPCR = (1 << SPE)|(1 << MSTR);		// Enable SPI and Master
 	SPSR = (1 << SPI2X);				// Set clock rate fck/2
-	TCCR0A = (1 << WGM01);				// Set timer mode to CTC
-	TCCR0B = (1 << CS02)|(1 << CS00);	// Set prescaler to 1024 and start timer
-	// OCRn = [ (Clock speed / Prescale value) * (Desired time in seconds) ] - 1
-	OCR0A = 3;							// Interrupt every 4096 clock cycles
-	TIMSK0 |= (1 << OCIE0A);			// Enable Timer0 Match A interrupt
-	
-	DDRC |= (1 << PINC4);				// Declare test LED as output
-	UBRR0 = 51;							// Set baudrate to 19200
-
-    /* Setup Timer1 for interval compare */
-    TCCR1B |= (1 << WGM12);					// Set CTC clock operation
-    TCCR1B |= (1 << CS11)|(1 << CS10);	// Set prescaler to 64
-    OCR1A = 249;
-    TIMSK1 |= (1 << OCIE1A);				// Enable interrupt handler	
+	TCCR2A = (1 << WGM21);				// Set timer 2 mode to CTC
+	TCCR2B = (1 << CS22)|(1 << CS20);	// Set prescaler to 1024 and start timer 2
+	OCR2A = 100;						// Interrupt every 13ms
+	TIMSK2 |= (1 << OCIE2A);			// Enable Timer0 Match A interrupt
 	
 	/* Enable UART transmission and reception */
-	UBRR0 = 51;						// Set baudrate to 19200
+	UBRR0 = 51;							// Set baudrate to 19200
 	UCSR0B = (1 << RXCIE0)|(1 << RXEN0)|(1 << TXEN0);
-	UCSR0C = (1 << USBS0)|(1 << UCSZ01)|(1 << UCSZ00); // Set two stop bits
-	UCSR0A = (0 << U2X0);			// Enable Receive Complete Interrupt
+	UCSR0C = (1 << USBS0)|(1<<UCSZ01)|(1 << UCSZ00); // Set two stop bits
+	UCSR0A = (0 << U2X0);				// Enable Receive Complete Interrupt
 		
 	/* Setup Hall effect interrupt*/
 	DDRD &= ~(1 << DDD3);
 	DDRD &= ~(1 << DDD2);
-	PORTD |= (0 << PORTD3) | (0<<PORTD2);  // Set INT0 to trigger on ANY logic change
+	PORTD |= (0 << PORTD3)|(0 << PORTD2);	// Set INT0 to trigger on ANY logic change
 	EICRA |= (1 << ISC00);
-	EIMSK |= (1 << INT1) | (1<<INT0);     // Enable INT1
+	EIMSK |= (1 << INT1)|(1<<INT0);			// Enable INT1
  	
 	/* Setup power LED */
 	DDRC |= (1 << PORTC3);
@@ -224,17 +208,16 @@ void setup(void) {
 	/* Set global variables */
 	DEG = 0;
 	DISTANCE = 0;
-	dataIndex = 0;
 	usbEnable = 0;
 	slowCounter = 0;
-	period = 0;
+	standbyEnable = 1;
 }
 
 /*
  * Function: getDC
  * ---------------
- * Calculate and store dot correction values in the cdData array upon
- * initialization.
+ * Upon startup, calculate and store dot correction values in the global dcData array.
+ * This ensures all LEDs are calibrated to equal maximum brightness.
  *
  */
 void getDC(void) {
@@ -248,177 +231,17 @@ void getDC(void) {
 	
 	XLAT_PORT |= (1 << XLAT_PIN);
 	XLAT_PORT &= ~(1 << XLAT_PIN);
-}
-	
-/*
- * Function: initMode3
- * -------------------
- * Following Test Mode 2, initialise Test Mode 3 by setting outermost LED grayscale
- * value to maximum brightness and all other LEDs off.
- *
- */
-int initMode3(void) {
-	for (gsData_t i = 0; i < gsDataSize; i++) {		// Set all grayscale values to 0
-		gsData[i] = 0b00000000;
-	} 
-	
-	gsData[0] = 0b11111111;		// Set outermost LED to max. brightness
-	// Turn off rotation sensing
-	while(1);
-	
-	return 0;
-}
+}	
 
 /*
- * Function: initMode2
- * -------------------
- * Following Test Mode 1, initialise Test Mode 2 by setting all LED grayscale
- * values to maximum brightness.
+ * Function: updateDisplay
+ * -----------------------
+ * Refresh the display with the 8-bit values stored in the  grayscale 
+ * data array. Note that the TLC5940 requires 12-bit values, so an 
+ * additional four zeros are shifted in alternating cycles.
  *
  */
-int initMode2(void) {
-	for (gsData_t i = 0; i < gsDataSize; i++) {		// Set all grayscale values to max.
-		gsData[i] = 0b11111111;
-	} 
-	
-	while(1) {
-		if (PIND & (1<<PIND6)) {
-			MODENUM = 3;
-			initMode3();
-		}
-	}
-	// Turn off rotation sensing
-	return 0;
-}
-/*
- * Function: initMode1
- * -------------------
- * Fix rotation speed to 200rpm, disable rotation sensing and standby modes.
- *
- */
-int initMode1(void) {
-
-	OCR2A = 15624*0.3/360;		// Set output compare register
-	
-	// Turn off rotation sensing
-	// Set display speed threshold to 0
-	// Make display at 200 rpm
-	
-	while(1) {
-		if (PIND & (1<<PORTD6)) {
-			
-		} else {
-			MODENUM = 2;
-			initMode2();
-		}
-	}
-	
-	return 0;
-}
-
-
-void USART0Init(void) {
-	UBRR0 = 51;							// Set baud rate 19200
-	// Set frame format to 8 data bits, no parity, 1 stop bit
-	UCSR0C |= (1<<UCSZ01)|(1<<UCSZ00);
-	UCSR0B |= (1<<RXEN0)|(1<<TXEN0);	// Enable transmission and reception
-}
-
-int USART0SendByte(char u8Data, FILE *stream) {
-	if (u8Data == '\n') {
-		USART0SendByte('\r', stream);
-	}
-	
-	while(!(UCSR0A & (1 << UDRE0)));	// Wait while previous byte is completed
-	UDR0 = u8Data;						// Transmit data
-	
-	return 0;
-}
-
-// Set stream pointer
-FILE usart0_str = FDEV_SETUP_STREAM(USART0SendByte, NULL, _FDEV_SETUP_WRITE);
-
-void display_picture(uint8_t columnNum) {
-	uint8_t num;
-	num = columnNum*32;
-	for (gsData_t i = 0; i < gsDataSize; i++) {		// Set all grayscale values to max brightness
-		gsData[i] = imageData[num];
-		num++;
-	}
-}
-	
-
-
-//void display(void) {
-	//uint8_t pageCounter = 0;
-	//int vertical;
-	//
-	//DEG = TIMER / DEGINTERVAL;
-	//while(DEG > 360){
-		//DEG = DEG -360;
-		//}		// Calculate what pixel the display is up to
-	//
-	//if( MODENUM == 0 ){											
-		//while(DEG > 4){
-			//DEG = DEG - 4;
-			//pageCounter++;
-		//}
-		//printf("%ld, %d", DEG, pageCounter);
-		//if(DEG == 1){
-			//getDataFromFlash(pageCounter);	
-		//}
-		//display_picture(DEG);
-	//}
-	//
-//}
-
-//int initMode4(void) {
-	//display();	
-	//return 0;
-//}
-
-
-
-void normalMode(void){
-	while(1) {
-		if (displayFlag == 1) {
-			displayFlag = 0;
-			for (uint8_t i = 0; i < 360; i++) {
-				display_picture(i);
-				_delay_ms(50);
-			}
-		}
-	}
-}
-
-
-
-int main(void) {
-	setup();				// Initialize hardware
-	getDC();				// Clock in dot correction data
-
-	sei();	
-	PORTC |= (1<<PORTC3);
-	
-	 if(PIND & (1 << PORTD6)){
- 		MODENUM = 1;
-		initMode1();
- 	} else {
- 		MODENUM = 0;
- 		normalMode();
- 	}
-
-	return 0; 
-}
-
-
-/*
- * Interrupt Handler: TIMER0_COMPA_vect
- * ------------------------------------
- * Displays the image.
- *
- */
-ISR(TIMER0_COMPA_vect) {
+void updateDisplay(void) {
 	static uint8_t latchNeedsPulse = 0;
 	
 	BLANK_PORT |= (1 << BLANK_PIN);			// Set blank output pin high
@@ -443,7 +266,7 @@ ISR(TIMER0_COMPA_vect) {
 	
 	BLANK_PORT &= ~(1 << BLANK_PIN);		// Set blank output pin low
 	
-	// Note: Below this we have 4096 cycles to shift in the data for the next cycle
+	// Note: Below this we shift in the grayscale data for the next cycle
 	int8_t buffer;
 	for (gsData_t i = 0; i < gsDataSize; i++) {
 		if (i%2 == 0) {
@@ -464,30 +287,322 @@ ISR(TIMER0_COMPA_vect) {
 }
 
 /*
- * Interrupt handler: TIMER0_COMPA_vect
- * ------------------------------------
- * Timer1 output compare interrupt, set to occur every 1ms.
+ * Function: initMode3
+ * -------------------
+ * Following Test Mode 2, initialise Test Mode 3 by setting outermost LED grayscale
+ * value to maximum brightness and all other LEDs off.
  *
  */
-ISR (TIMER1_COMPA_vect) {
-    thisPeriod++;
+int initMode3(void) {
+	for (gsData_t i = 0; i < gsDataSize; i++) {		// Set all grayscale values to 0
+		gsData[i] = 0b00000000;
+	} 
+	
+	gsData[0] = 0b00111111;		// Set outermost LED to maximum brightness
+	while(1) {
+		updateDisplay();
+	}
+	
+	return 0;
 }
 
-/* 
- * External Interrupt: INT1_vect
- * -----------------------------
- * Sets up external interrupt for hall effect sensor, signifies one 
- * complete wheel rotation.
+/*
+ * Function: initMode2
+ * -------------------
+ * Following Test Mode 1, initialise Test Mode 2 by setting all LED grayscale
+ * values to maximum brightness.
+ *
+ */
+int initMode2(void) {
+	for (gsData_t i = 0; i < gsDataSize; i++) {		// Set all grayscale values to max.
+		gsData[i] = 0b00111111;
+	} 
+	_delay_ms(100);
+	
+	while (1) {
+		if (PIND & (1 << PIND6)) {		// When mode switch is turned on...
+			MODENUM = 3;
+			initMode3();				// Enter Test Mode 3
+		}
+		updateDisplay();				// Otherwise continue refreshing the display
+	}
+	return 0;
+}
+
+/*
+ * Function: initMode1
+ * -------------------
+ * Fix rotation speed to 200rpm, disable rotation sensing and standby modes.
+ *
+ */
+int initMode1(void) {
+	
+	while (1) {
+		if (PIND & (1<<PORTD6)) {	// Mode switch remains on
+									// Do nothing
+		} else {					
+			MODENUM = 2;			// Mode switch is turned off
+			initMode2();			// Enter Test Mode 2
+		}
+		display();
+	}
+	return 0;
+}
+
+/*
+ * Function: standbyMode
+ * ---------------------
+ */
+// void standbyMode(){
+// 	// Choose our preferred sleep mode:
+// 	set_sleep_mode(SLEEP_MODE_IDLE);
+// 	
+// 	// Set sleep enable (SE) bit:
+// 	sleep_enable();
+// 	
+// 	// Put the device to sleep:
+// 	sleep_mode();
+// 	
+// 	// Upon waking up, sketch continues from this point.
+// 	sleep_disable();
+// }
+
+/*
+ * Function: displayBlank
+ * ----------------------
+ * Set entire grayscale data array to be off.
+ *
+ */
+void displayBlank(){
+	for (gsData_t i = 0; i < gsDataSize; i++) {		
+		gsData[i] = 0b00000000;
+	}
+}
+
+/*
+ * Function: displayOn
+ * -------------------
+ * Set entire grayscale data array to maximum brightness.
+ *
+ */
+void displayOn(){
+	for (gsData_t i = 0; i < gsDataSize; i++) {		
+		gsData[i] = 0b00111111;
+	}
+}
+
+/* Uncomment to read printf() statements through USART:
+--------------------------------------------------------
+ void USART0Init(void) {
+ 	UBRR0 = 51;							// Set baud rate 19200
+ 	// Set frame format to 8 data bits, no parity, 1 stop bit
+ 	UCSR0C |= (1<<UCSZ01)|(1<<UCSZ00);
+ 	UCSR0B |= (1<<RXEN0)|(1<<TXEN0);	// Enable transmission and reception
+ }
+ 
+ int USART0SendByte(char u8Data, FILE *stream) {
+ 	if (u8Data == '\n') {
+ 		USART0SendByte('\r', stream);
+ 	}
+ 	
+ 	while(!(UCSR0A & (1 << UDRE0)));	// Wait while previous byte is completed
+ 	UDR0 = u8Data;						// Transmit data
+ 	
+ 	return 0;
+ } 
+
+ Set stream pointer
+ FILE usart0_str = FDEV_SETUP_STREAM(USART0SendByte, NULL, _FDEV_SETUP_WRITE); */
+
+
+/*
+ * Function: displayPicture
+ * ------------------------
+ * Copies an array from flash memory into the grayscale data array for display.
+ * 
+ */
+void display_picture(uint8_t columnNum){
+	uint8_t num;
+	num = columnNum * 32;
+	for (gsData_t i = 0; i < gsDataSize; i++) {		// Set all grayscale values to max brightness
+// 		if(imageData[num] < 100 ){
+// 			gsData[i] = 0;
+// 		} else {
+		gsData[i] = imageData[num];
+		/*}*/
+		num++;
+	}
+}
+
+
+/*
+ * Function: display
+ * -----------------
+ * Determines which column of pixel 
+ */
+void display(void) {
+	uint8_t pageCounter = 0;
+	if(TIMER > 20000 ){
+		standbyEnable = 1;
+	}
+	DEG = TIMER * 10 / DEGINTERVAL;
+	while (DEG > 360) {
+		DEG = DEG -360;
+	}	
+
+ 	if (MODENUM == 0) {											
+ 		while (DEG > 4) {
+ 			DEG = DEG - 4;
+			pageCounter++;
+ 		}
+ 		if (DEG == 1) {
+ 			getDataFromFlash(pageCounter);	
+ 		}
+		display_picture(DEG);
+		
+	} else if (MODENUM == 1) {
+		DEGINTERVAL = 9;	
+		slowCounter = 0;
+		standbyEnable = 0;					// Restart vertical pixel counter
+		while (DEG > 4) {
+			DEG = DEG - 4;
+			pageCounter++;
+		}
+		if (DEG == 1) {
+			getDataFromFlash(pageCounter);
+		}
+		display_picture(DEG);
+	}
+	
+	static uint8_t latchNeedsPulse = 0;
+	
+	BLANK_PORT |= (1 << BLANK_PIN);			// Set blank output pin high
+	
+	if (VPRG_PORT & (1 << VPRG_PIN)) {
+		VPRG_PORT &= ~(1 << VPRG_PIN);		// Set mode selection pin low
+		
+		if (latchNeedsPulse) {
+			XLAT_PORT |= (1 << XLAT_PIN);	// Pulse latch signal pin
+			XLAT_PORT &= ~(1 << XLAT_PIN);
+			latchNeedsPulse = 0;
+		}
+		
+		SCLK_PORT |= (1 << SCLK_PIN);		// Pulse serial data clock pin
+		SCLK_PORT &= ~(1 << SCLK_PIN);
+		
+		} else if (latchNeedsPulse) {
+		XLAT_PORT |= (1 << XLAT_PIN);		// Pulse latch signal pin
+		XLAT_PORT &= ~(1 << XLAT_PIN);
+		latchNeedsPulse = 0;
+	}
+	
+	BLANK_PORT &= ~(1 << BLANK_PIN);	// Set blank output pin low
+	
+	// Note: Below this we shift in the data for the next cycle
+	int8_t buffer;
+	for (gsData_t i = 0; i < gsDataSize; i++) {
+		if (i%2 == 0) {
+			SPDR = gsData[i];
+			while (!(SPSR & (1 << SPIF)));
+			} else {
+			buffer = gsData[i] >> 4;
+			SPDR = buffer;
+			while (!(SPSR & (1 << SPIF)));
+			
+			buffer = gsData[i] << 4;
+			SPDR = (buffer << 4);
+			while (!(SPSR & (1 << SPIF)));
+		}
+	}
+	
+	latchNeedsPulse = 1;
+}
+
+
+/*
+ * Function: normalMode
+ * --------------------
+ * When in normal mode, the stored image data  
+ *
+ */
+void normalMode(void) {
+	while (1) {
+		if (standbyEnable == 1) {		// Blank display while in standby
+			displayBlank();
+			PORTC |= (1 << PORTC3);		// Power LED remains on
+		} else if (usbEnable == 1) {	// Blank display when transferring over USB
+			displayBlank();
+		} else {
+			display();	 
+		}
+	}
+}
+
+int main(void) {
+	setup();					// Initialize hardware
+	getDC();					// Clock in dot correction data
+	
+	/* Uncomment to debug through printf() statements:
+	--------------------------------------------------
+	//USART0Init();				// Initialize USART0	
+  	//stdout=&usart0_str;		// Assign our stream to standard I/O stream				
+	*/
+	
+	sei();							// Enable interrupts
+	PORTC |= (1 << PORTC3);			// Turn power LED on
+	
+ 	if (PIND & (1 << PORTD6)) {		// Mode switch is on
+  		MODENUM = 1;				// Enter Test Mode 1
+ 		initMode1();
+ 	} else {						// Mode switch is off
+  		MODENUM = 0;				// Normal operation
+  		normalMode();
+  	}
+	 
+	return 0; 
+}
+
+/*
+ * Interrupt handler: TIMER2_COMPA_vect
+ * ----------------------------------
+ * Timer2 output compare interrupt, set to occur every 13ms and updates display.
+ *
+ */
+ISR (TIMER2_COMPA_vect) {
+	TIMER++;
+}
+
+/* Eternal Interrupt: INT1_vect
+ * ----------------------------
+ * External interrupt for hall effect sensor.
  *
  */
 ISR (INT1_vect) {
-    period = thisPeriod;
-    thisPeriod = 0;
-    
-    rotationCount++;
-    distance = rotationCount*CIRCUMFERENCE;
-    
-    displayFlag = 1;
+	uint16_t time = TIMER*10;		// Each cycle is 13ms		
+ 	if(time < 1900){
+ 		 							// Do nothing
+ 	} else if (MODENUM == 1){
+		DEGINTERVAL = 9;	
+		DEG = 0;					// Restart vertical pixel counter
+		TIMER = 0;					
+		slowCounter = 0;
+		standbyEnable = 0;
+			  	
+	/* Enable standby mode when rotations speed is too slow */			  
+  	} else if ((time > 8000) && (MODENUM != 2) && (MODENUM != 3)){ 
+ 		 slowCounter++;
+ 		 if (slowCounter > 2) {		// Three consecutive cycles below required speed
+ 			 standbyEnable = 1;		// Standby mode enabled
+ 		 }
+ 		TIMER = 0;					// Timer is reset
+		 
+ 	} else {						// Set 240ms check
+		slowCounter = 0;
+		standbyEnable = 0;
+		DEGINTERVAL = time/360;
+		DEG = 0;					// Restart vertical pixel counter
+		TIMER = 0;
+ 	}
 }
 
 
@@ -503,17 +618,34 @@ ISR(USART_RX_vect) {
 	usbEnable = 1;
 }
 
+/* 
+ * Function: USART0_Recieve
+ * ------------------------
+ * Wait for new byte to arrive and return the received byte.
+ *
+ */
 uint8_t USART0_Receive(void){
 	while(!(UCSR0A & (1 << RXC0)));
 	return UDR0;
 }
-
+/* 
+ * Function: USART0_Transmit
+ * ------------------------
+ * Transmits byte over USART connection.
+ *
+ */
 void USART0_Transmit(uint8_t data){
 	while(!(UCSR0A & (1 << UDRE0)));
 	UDR0 = data;
 }
 
-BOOTLOADER_SECTION void boot_program_page (uint32_t page, uint8_t *buf) {
+/* 
+ * Function: BOOTLOADER_SECTION
+ * ------------------------
+ * boot.h defined function to save onto internal flash
+ *
+ */
+BOOTLOADER_SECTION void boot_program_page (uint32_t page, uint8_t *buffer) {
 	uint16_t i;
 	uint8_t sreg;
 
@@ -522,24 +654,25 @@ BOOTLOADER_SECTION void boot_program_page (uint32_t page, uint8_t *buf) {
 	sreg = SREG;
 	cli();
 	
-	eeprom_busy_wait ();
+	eeprom_busy_wait();
 
 	boot_page_erase (page);
 	boot_spm_busy_wait ();      // Wait until the memory is erased.
 
-	for (i=0; i<SPM_PAGESIZE; i+=2) {
+	for (i=0; i<SPM_PAGESIZE; i+=2)
+	{
 		// Set up little-endian word.
 
-		uint16_t w = *buf++;
-		w += (*buf++) << 8;
+		uint16_t w = *buffer++;
+		w += (*buffer++) << 8;
 		
 		boot_page_fill (page + i, w);
 	}
 
-	boot_page_write (page);     // Store buffer in flash page.
-	boot_spm_busy_wait();       // Wait until the memory is written.
+	boot_page_write(page);     // Store buffer in flash page.
+	boot_spm_busy_wait();      // Wait until the memory is written.
 
-	// Reenable RWW-section again. We need this if we want to jump back
+	// Re-enable RWW-section again. We need this if we want to jump back
 	// to the application after bootloading.
 
 	boot_rww_enable ();
@@ -549,24 +682,50 @@ BOOTLOADER_SECTION void boot_program_page (uint32_t page, uint8_t *buf) {
 	SREG = sreg;
 }
 
-void readUsb() {
+/* 
+ * Function: readUsb()
+ * ------------------------
+ * Transmits handshake over USART to software. Then receives image in 4 column
+ * increments and saves them to internal flash. Then transmits an acknowledgment  
+ * on completion. Disables every other function, so that user must reset board.
+ *
+ */
+void readUsb(void) {
 	uint16_t pageNum;
 	uint8_t byteNum;
+	uint8_t byte;
+	
 	USART0_Transmit('1');
-	for(pageNum = 0; pageNum < 90; pageNum++) {
-		for(byteNum = 0; byteNum < 128; byteNum++) {
-			usbData[byteNum] = USART0_Receive();
+	
+	for (pageNum = 0; pageNum < 90; pageNum++) {
+		for(byteNum = 0; byteNum < 128; byteNum ++) {
+			 byte = USART0_Receive();
+			 if(byte > 0){
+				  usbData[byteNum] = byte/2+ 100;
+			 } else {
+				 usbData[byteNum] = 0;
+			 }
 		}
-	boot_program_page(SAVE_ADDRESS+(pageNum*128), usbData);
-	PORTC ^= (1<<PORTC3);								// Blink LED when interacting with PC
-	USART0_Transmit('1');								// Send Confirmation of save
+		
+		boot_program_page(SAVE_ADDRESS+(pageNum*128), usbData);
+	
+		PORTC ^= (1<<PORTC3);		// Blink LED when interacting with PC
+		USART0_Transmit('1');		// Send confirmation of save
 	}
-	usbEnable = 0;
+	usbEnable = 0;					// Disable USB
 }
 
-void getDataFromFlash(uint16_t pageNum) {
-	for (uint16_t i = 0; i < 128; i++) {
-		imageData[i] = pgm_read_byte(SAVE_ADDRESS + i + pageNum*128);
-		USART0_Transmit(imageData[i]);
+
+/*
+ * Function: getDataFromFlash
+ * --------------------------
+ * Reads in specific page from flash memory and save it in global array to 
+ * be displayed.
+ *
+ */
+void getDataFromFlash(uint16_t pageNumber) {
+	uint16_t i;
+	for (i = 0; i < 128; i++) {
+		imageData[i] = pgm_read_byte(SAVE_ADDRESS + i + pageNumber*128);
 	}
 }
